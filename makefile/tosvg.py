@@ -2,58 +2,49 @@ import cv2
 import subprocess
 import os
 
-def line_drawing_image(img):
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    gray = cv2.equalizeHist(gray)
-    gray_blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-    edges = cv2.adaptiveThreshold(gray_blurred, 255,
-                                  cv2.ADAPTIVE_THRESH_MEAN_C,
-                                  cv2.THRESH_BINARY, 11, 7)
-    return edges
+# ====== 入力と出力 ======
+input_file = "line_output_dualcontrol.jpg"   # ここはあなたが生成した線画
+debug_jpg  = "line_debug_original.jpg"       # ↓ デバッグ用そのまま保存
+bitmap_pgm = "line_bitmap.pgm"               # potrace入力用（1bitではなくPGM）
+raw_svg    = "line_raw.svg"                  # potrace直後
+final_svg  = "line_final.svg"                # vpype後＝プロッター用
 
-input_file = "line_output_dualcontrol.jpg"
-bitmap_file = "line_bitmap.pbm"
-initial_svg = "line_raw.svg"
-optimized_svg = "line_optimized.svg"
-debug_save = "line_debug_original.png"
+# ====== 線画を読み込み ======
+line_img = cv2.imread(input_file, cv2.IMREAD_GRAYSCALE)
+if line_img is None:
+    print("❌ 画像が読み込めませんでした。ファイル名を確認してください。")
+    exit()
 
-# 画像読み込み
-img = cv2.imread(input_file)
-line_img = line_drawing_image(img)
+# ✅ デバッグ用に「線画そのまま」を保存（重要）
+cv2.imwrite(debug_jpg, line_img)
+print(f"📝 デバッグ画像（元の線画そのまま）を保存 → {debug_jpg}")
 
-# デバッグ用保存
-cv2.imwrite(debug_save, line_img)
-print(f"📝 元の線画を保存 → {debug_save}")
+# ====== PGM形式に反転して保存（ここが重要） ======
+# 黒線 + 白背景 が potrace にとって最も良い
+line_inv = cv2.bitwise_not(line_img)
+cv2.imwrite(bitmap_pgm, line_inv)
 
-# 反転（黒線・白背景）
-line_for_trace = cv2.bitwise_not(line_img)
-
-# PBM で保存
-cv2.imwrite(bitmap_file, line_for_trace)
-
-# ✅ ポトレース（ノイズ除去 & スムーズ化オプション付き）
+# ====== ① potrace による SVG ベクトル化 ======
 subprocess.run([
     "potrace",
-    bitmap_file,
+    bitmap_pgm,
     "--svg",
-    "-t", "8",       # 小さい線を無視（大事）
-    "-a", "1.0",     # スムース化強
-    "-O", "0.3",     # 角丸め（汚れ除去）
-    "-o", initial_svg
+    "-t", "4",       # 細かいノイズ抑制
+    "-a", "1.2",     # 曲線スムージング
+    "-O", "0.25",    # 角を自然に丸める
+    "-o", raw_svg
 ])
+print(f"✅ potrace により SVG 生成 → {raw_svg}")
 
-print(f"✅ SVG（一次変換）→ {initial_svg}")
-
-# ✅ vpype による線の整理（描画を劇的に速く）
+# ====== ② vpype を使って線を最適化（プロッター描画速度が劇的に向上） ======
 subprocess.run([
     "vpype",
-    "read", initial_svg,
-    "linemerge",      # つながる線は繋げる → ペン上下が減る
-    "linesort",       # 描画順最適化 → 無駄な移動が減る
-    "simplify",       # 細かいガタガタを整理 → 綺麗な線になる
-    "write", optimized_svg
+    "read", raw_svg,
+    "linemerge",     # つながる線を結合 → ペンの上下回数が減る
+    "linesort",      # 描画順を最適化 → 無駄な移動が減る
+    "simplify",      # 細かいガタガタを除去
+    "write", final_svg
 ])
+print(f"🎨 vpype により描画用に最適化 → {final_svg}")
 
-print(f"🎨 最適化済み SVG → {optimized_svg}")
-
-print("\n✅ 完了しました！ この SVG をプロッターに送ると描画が綺麗 & 速いです ✨")
+print("\n✅ 完了しました！ このファイルをプロッターに送ってください ✨")
