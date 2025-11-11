@@ -1,0 +1,19 @@
+# DockerHubの既存イメージをベースにする
+FROM jupyter/datascience-notebook:latest
+
+# 必要なPythonライブラリをインストールする
+RUN pip install opencv-python
+
+# 他にも必要な設定があればここに追加
+# 例: システムパッケージのインストール
+# RUN apt-get update && apt-get install -y <必要なパッケージ>
+
+# コンテナの作業ディレクトリを設定
+WORKDIR /app/work
+
+# ソースコードをコンテナ内にコピーする
+COPY . /app
+
+# デフォルトではJupyter Notebookが起動されるため、CMDは省略可能
+# 必要に応じてコマンドを変更
+# CMD ["python", "your_script.py"]s
