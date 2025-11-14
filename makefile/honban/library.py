@@ -53,13 +53,14 @@ def save_pgm_for_potrace(line_img, bitmap_pgm):
 def potrace_to_svg(bitmap_pgm, raw_svg):
     subprocess.run([
         "potrace",
-        bitmap_pgm,
+        str(bitmap_pgm),
         "--svg",
-        "-t", "4",
-        "-a", "1.2",
-        "-O", "0.25",
-        "-o", raw_svg
-    ])
+        "--longcurve",
+        "-t", str(turdsize),
+        "-a", str(alphamax),
+        "-O", str(opttolerance),
+        "-o", str(raw_svg)
+    ], check=True)
     print(f"✅ potrace → {raw_svg}")
 
 def optimize_svg_with_vpype(raw_svg, final_svg):
