@@ -20,7 +20,9 @@ project-root/
 │
 ├── hard/
 │   ├── software/                 # モーター・ソレノイド制御（未着手）
-│   └── hardware/                 # 筐体の 3D データ（Fusion360）（未着手）
-│
+│   └── hardware/                 # 筐体の 3D データ（Fusion360）
+│       ├── fusion                # 筐体のfusionデータ(.f3df)
+|       └── 3mf                   #筐体の3dプリンター用データ(.3mf)
+|
 └── README.md                     # このファイル
 ```
