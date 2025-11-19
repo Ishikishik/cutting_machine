@@ -131,3 +131,52 @@ def convert_to_svg(line_jpg, debug_jpg, bitmap_pgm, raw_svg, final_svg):
     potrace_to_svg(bitmap_pgm, raw_svg)
     optimize_svg_with_vpype(raw_svg, final_svg)
     print("\n✅ SVG 作成完了 →", final_svg)
+
+
+
+
+
+def preview_curve_groups(line_img, max_curves):
+    if len(line_img.shape) == 3:
+        gray = cv2.cvtColor(line_img, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = line_img
+
+    _, th = cv2.threshold(
+        gray, 0, 255,
+        cv2.THRESH_BINARY + cv2.THRESH_OTSU
+    )
+    th = 255 - th
+
+    contours, _ = cv2.findContours(th, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+    contours = [c for c in contours if len(c) > 5]
+
+    contours = sorted(
+        contours,
+        key=lambda c: cv2.arcLength(c, closed=False),
+        reverse=True
+    )[:max_curves]
+
+    debug = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+
+    for idx, cnt in enumerate(contours):
+        color = id_to_color(idx)  # ← 色が固定される！
+        for p in cnt.reshape(-1, 2):
+            cv2.circle(debug, (p[0], p[1]), 1, color, -1)
+
+    return debug
+
+
+
+def id_to_color(i):
+    """
+    curve_id → 一意の色を返す（OpenCV BGR形式）
+    Hue を i に応じて変えることで安定した色分けを実現
+    """
+    hue = int((i * 37) % 180)  # 180色中、37刻みで色を分散
+    saturation = 200
+    value = 255
+
+    hsv = np.uint8([[[hue, saturation, value]]])
+    bgr = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)[0][0]
+    return int(bgr[0]), int(bgr[1]), int(bgr[2])
