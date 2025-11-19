@@ -9,6 +9,55 @@ import cv2
 import numpy as np
 import subprocess
 
+
+# 縦横比を調節
+def resize_with_aspect(img, target_w, target_h):
+    th = target_h
+    tw = target_w
+    h, w = img.shape[:2]
+
+    # すでに同じ比率ならそのまま
+    if abs((w / h) - (tw / th)) < 1e-3:
+        return cv2.resize(img, (tw, th))
+
+    # 画像の方が横長 → 横を切る
+    if w / h > tw / th:
+        new_w = int(h * tw / th)
+        x1 = (w - new_w) // 2
+        img_cropped = img[:, x1:x1+new_w]
+    
+    # 画像の方が縦長 → 縦を切る
+    else:
+        new_h = int(w * th / tw)
+        y1 = (h - new_h) // 2
+        img_cropped = img[y1:y1+new_h, :]
+
+    return cv2.resize(img_cropped, (tw, th))
+
+
+#フレームの縦横比を変更
+def crop_to_aspect(img, target_w, target_h):
+    """
+    入力画像 img を target_w:target_h の縦横比に中央でクロップする
+    """
+    h, w = img.shape[:2]
+    target_ratio = target_w / target_h
+    src_ratio = w / h
+
+    # 横が余る場合 → 横をクロップ
+    if src_ratio > target_ratio:
+        new_w = int(h * target_ratio)
+        x1 = (w - new_w) // 2
+        img_cropped = img[:, x1:x1 + new_w]
+    else:
+        # 縦が余る場合 → 縦をクロップ
+        new_h = int(w / target_ratio)
+        y1 = (h - new_h) // 2
+        img_cropped = img[y1:y1 + new_h, :]
+
+    # 目的サイズに縮小（引き伸ばしではなく比率は維持済み）
+    return cv2.resize(img_cropped, (target_w, target_h))
+
 # === 顔検出器 ===
 face_cascade = cv2.CascadeClassifier(str(BASE_DIR / "haarcascade_frontalface_default.xml"))
 

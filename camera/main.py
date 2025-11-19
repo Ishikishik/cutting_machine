@@ -1,7 +1,6 @@
 from pathlib import Path
 import cv2
-from library import detect_face_once, line_drawing_image, convert_to_svg
-
+from library import detect_face_once, line_drawing_image, convert_to_svg, resize_with_aspect, crop_to_aspect
 BASE_DIR = Path(__file__).resolve().parent
 
 # =========================
@@ -10,19 +9,24 @@ BASE_DIR = Path(__file__).resolve().parent
 print("カメラを起動します... (Space: 撮影 / q: 終了)")
 
 cap = cv2.VideoCapture(0)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH,  100)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 148)
 if not cap.isOpened():
     print("❌ カメラが開けません")
     exit()
 
+
+
+PREVIEW_W = 2000
+PREVIEW_H = 2960
+
+cv2.namedWindow("Camera Preview", cv2.WINDOW_NORMAL)
 while True:
     ret, frame = cap.read()
     if not ret:
         print("❌ フレーム取得失敗")
         break
 
-    cv2.imshow("Camera Preview", frame)
+    preview = crop_to_aspect(frame, PREVIEW_W, PREVIEW_H)
+    cv2.imshow("Camera Preview", preview)
     key = cv2.waitKey(1) & 0xFF
 
     if key == ord(' '):  # Space → シャッター
@@ -44,6 +48,12 @@ cv2.destroyAllWindows()
 # =========================
 input_file = BASE_DIR / "captured.jpg"
 img = cv2.imread(str(input_file))
+
+# === ここを追加 ===
+TARGET_W = 1000
+TARGET_H = 1480
+img = resize_with_aspect(img, TARGET_W, TARGET_H)
+print("📐 縦横比を補正:", img.shape)
 if img is None:
     print("画像読み込み失敗:", input_file)
     exit()
