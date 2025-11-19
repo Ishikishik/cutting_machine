@@ -50,7 +50,7 @@ def save_pgm_for_potrace(line_img, bitmap_pgm):
     line_inv = cv2.bitwise_not(line_img)
     cv2.imwrite(bitmap_pgm, line_inv)
 
-def potrace_to_svg(bitmap_pgm, raw_svg):
+def potrace_to_svg(bitmap_pgm, raw_svg ,turdsize=2 ,alphamax=1.0, opttolerance=0.2):
     subprocess.run([
         "potrace",
         str(bitmap_pgm),
