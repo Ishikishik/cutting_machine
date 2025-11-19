@@ -9,6 +9,7 @@ project-root/
 │
 ├── test/
 │   └── test(camera)/             # camera モジュールのテスト用コード
+│   └── test(makelistdontusesvg)/             # svgにせずに線として区別するアルゴリズムを作成
 │
 ├── simulate/                     # 方針：simulate でコードを作り、本番へ移植する
 │   ├── docker-compose.yml
