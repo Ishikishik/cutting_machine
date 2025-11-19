@@ -27,4 +27,17 @@ project-root/
 |       └── 3mf                   #筐体の3dプリンター用データ(.3mfもしくは.stl)
 |
 └── README.md                     # このファイル
+
+
+
+├── gcodegenerator/               # 写真撮影 → Gcode 生成までを行う
+│   │── main.py                   # gcodegeneratorを回すメインループ
+│   ├── camera/                   # 実行すると撮影〜SVG生成まで自動で実施
+│   │    ├── prosessor.py               # main.py で使用する処理まとめ(カメラ系)
+│   │    ├── library.py            # prosessor.py で使用する処理まとめ
+│   │    ├── __init__.py           # お守り
+│   │    └── haarcascade_frontalface_default.xml  # 顔認識用データ（library.py が使用）
+│   │
+│   ├── library.py                # main.py で使用する処理まとめ
+│   └── haarcascade_frontalface_default.xml  # 顔認識用データ（library.py が使用）
 ```
