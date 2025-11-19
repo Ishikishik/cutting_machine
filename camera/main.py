@@ -10,6 +10,8 @@ BASE_DIR = Path(__file__).resolve().parent
 print("カメラを起動します... (Space: 撮影 / q: 終了)")
 
 cap = cv2.VideoCapture(0)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH,  100)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 148)
 if not cap.isOpened():
     print("❌ カメラが開けません")
     exit()
