@@ -5,6 +5,7 @@ import cv2
 import matplotlib.pyplot as plt
 from matplotlib.colors import hsv_to_rgb
 import csv
+import math
 
 
 # =========================================================
@@ -179,3 +180,122 @@ def save_curve_list_to_csv(curve_list, path="curves.csv"):
                 writer.writerow([cid, i, x, y])
 
     print(f"CSV 保存完了: {path}")
+
+
+
+# =========================================================
+# ⑤ 座標の回転（度指定）
+# =========================================================
+def rotate_points(points, angle_deg):
+    """
+    1 曲線の points（[(x,y),...]）を angle_deg だけ回転する
+    原点(0,0)基準で回転
+    """
+    rad = math.radians(angle_deg)
+
+    R = np.array([
+        [ math.cos(rad), -math.sin(rad)],
+        [ math.sin(rad),  math.cos(rad)]
+    ])
+
+    pts = np.array(points, dtype=float)
+    rotated = pts @ R.T
+
+    return [(float(x), float(y)) for x, y in rotated]
+
+
+def rotate_curve_list(curve_list, angle_deg):
+    """
+    curve_list 全体を回転
+    """
+    new_list = []
+    for curve in curve_list:
+        new_pts = rotate_points(curve["points"], angle_deg)
+        new_list.append({
+            "curve_id": curve["curve_id"],
+            "points": new_pts
+        })
+    return new_list
+
+
+# =========================================================
+# ⑥ 正規化スケーリング（mmm × mmm の枠に収める）
+# =========================================================
+def scale_to_box(points, target_w, target_h):
+    """
+    1 曲線を target_w × target_h に収まるようアスペクト維持スケーリング
+    """
+    pts = np.array(points, dtype=float)
+
+    min_x, max_x = pts[:,0].min(), pts[:,0].max()
+    min_y, max_y = pts[:,1].min(), pts[:,1].max()
+
+    w = max_x - min_x
+    h = max_y - min_y
+
+    if w == 0 or h == 0:
+        return points  # サイズゼロ防止
+
+    sx = target_w / w
+    sy = target_h / h
+    scale = min(sx, sy)  # アスペクト維持
+
+    # 原点に寄せてスケール
+    pts[:,0] = (pts[:,0] - min_x) * scale
+    pts[:,1] = (pts[:,1] - min_y) * scale
+
+    return [(float(x), float(y)) for x, y in pts]
+
+
+def scale_curve_list(curve_list, target_w, target_h):
+    """
+    curve_list 全体を target_w × target_h に収める
+    曲線ごとではなく「全体 bounding box」を見る版
+    """
+    # --- 全体の bounding box を取得 ---
+    all_pts = []
+    for curve in curve_list:
+        all_pts.extend(curve["points"])
+    all_pts = np.array(all_pts, dtype=float)
+
+    min_x, max_x = all_pts[:,0].min(), all_pts[:,0].max()
+    min_y, max_y = all_pts[:,1].min(), all_pts[:,1].max()
+
+    W = max_x - min_x
+    H = max_y - min_y
+
+    sx = target_w / W
+    sy = target_h / H
+    scale = min(sx, sy)
+
+    # --- スケーリング ---
+    new_list = []
+    for curve in curve_list:
+        pts = np.array(curve["points"], dtype=float)
+        pts[:,0] = (pts[:,0] - min_x) * scale
+        pts[:,1] = (pts[:,1] - min_y) * scale
+
+        new_list.append({
+            "curve_id": curve["curve_id"],
+            "points": [(float(x), float(y)) for x, y in pts]
+        })
+
+    return new_list
+
+
+def round_curve_list(curve_list, ndigits=3):
+    """
+    全ての座標を小数点以下 ndigits 桁に丸める
+    （内部計算は float のまま保持）
+    """
+    new_list = []
+    for curve in curve_list:
+        pts = curve["points"]
+        pts_round = [
+            (round(x, ndigits), round(y, ndigits)) for (x, y) in pts
+        ]
+        new_list.append({
+            "curve_id": curve["curve_id"],
+            "points": pts_round
+        })
+    return new_list

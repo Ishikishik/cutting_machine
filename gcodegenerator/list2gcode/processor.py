@@ -5,7 +5,10 @@ from .list2goodlist import (
     reorder_curve,
     visualize_curves,
     reorder_curves_by_tsp,
-    save_curve_list_to_csv
+    save_curve_list_to_csv,
+    rotate_curve_list,
+    scale_curve_list,
+    round_curve_list,
 )
 
 
@@ -48,3 +51,25 @@ def sort_curves_tsp(curve_list):
 
 def export_curve_csv(curve_list, filename="curves.csv"):
     save_curve_list_to_csv(curve_list, filename)
+
+
+def generate_rotandscale_curves(curve_list,
+                          rotate_deg=0,
+                          box_w=100,
+                          box_h=148,
+                          decimal_digits=3):
+    """
+    並べ替え済みの curve_list に対して
+    回転 → 縮小 → 小数点桁数丸め
+    """
+
+    # ① 回転
+    rotated = rotate_curve_list(curve_list, rotate_deg)
+
+    # ② 縮小（ハガキ 100×148mm）
+    scaled = scale_curve_list(rotated, box_w, box_h)
+
+    # ③ 小数点以下 decimal_digits 桁で丸め
+    rounded = round_curve_list(scaled, ndigits=decimal_digits)
+
+    return rounded

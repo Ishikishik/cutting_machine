@@ -35,9 +35,13 @@ project-root/
 │   ├── camera/                   # 実行すると撮影〜SVG生成まで自動で実施
 │   │    ├── prosessor.py               # main.py で使用する処理まとめ(カメラ系)
 │   │    ├── library.py            # prosessor.py で使用する処理まとめ
+│   │    ├──haarcascade_frontalface_default.xml  # 顔認識用データ（library.py が使用）
+│   │    └── __init__.py           # お守り
+│   │
+│   ├── list2gcode/                # 実行すると撮影〜SVG生成まで自動で実施
+│   │    ├── processor.py          # 画像リスト受け取りからgcode作成までを担当する
+│   │    ├── list2goodlist.py      # 画像リスト受け取り、回転、位置調整、圧縮、書く順番極めまでを担当
 │   │    ├── __init__.py           # お守り
 │   │    └── haarcascade_frontalface_default.xml  # 顔認識用データ（library.py が使用）
 │   │
-│   ├── library.py                # main.py で使用する処理まとめ
-│   └── haarcascade_frontalface_default.xml  # 顔認識用データ（library.py が使用）
 ```
