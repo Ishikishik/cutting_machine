@@ -53,23 +53,39 @@ def export_curve_csv(curve_list, filename="curves.csv"):
     save_curve_list_to_csv(curve_list, filename)
 
 
+from list2gcode.list2goodlist import (
+    rotate_curve_list,
+    scale_curve_list,
+    translate_curve_list,
+    round_curve_list,
+)
+
+
 def generate_rotandscale_curves(curve_list,
-                          rotate_deg=0,
-                          box_w=100,
-                          box_h=148,
-                          decimal_digits=3):
+                                rotate_deg=0,
+                                box_w=100,
+                                box_h=148,
+                                offset_x=0,
+                                offset_y=0,
+                                decimal_digits=3):
     """
     並べ替え済みの curve_list に対して
-    回転 → 縮小 → 小数点桁数丸め
+    回転 → 縮小 → 平行移動 → 小数点丸め
     """
 
     # ① 回転
     rotated = rotate_curve_list(curve_list, rotate_deg)
 
-    # ② 縮小（ハガキ 100×148mm）
+    # ② 縮小（ハガキ等）
     scaled = scale_curve_list(rotated, box_w, box_h)
 
-    # ③ 小数点以下 decimal_digits 桁で丸め
-    rounded = round_curve_list(scaled, ndigits=decimal_digits)
+    # ③ 平行移動（offset_x, offset_y mm）
+    translated = translate_curve_list(scaled, offset_x, offset_y)
 
-    return rounded
+    # ④ 小数点以下 N 桁で丸め
+    final_list = round_curve_list(translated, ndigits=decimal_digits)
+
+    return final_list
+
+
+

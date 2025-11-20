@@ -15,11 +15,13 @@ else:
     sorted_list = sort_curves_tsp(curve_list)
 
     final_curves = generate_rotandscale_curves(
-    sorted_list,
-    rotate_deg = 90,    # ← 時計回り 90° 回す（例）
-    box_w = 100,        # ← ハガキ短辺 mm
-    box_h = 148,         # ← ハガキ長辺 mm
-    decimal_digits = 3
+        sorted_list,
+        rotate_deg = 90,      # 90°回転
+        box_w = 100,          # ハガキ短辺
+        box_h = 148,          # ハガキ長辺
+        offset_x = 10,        # →方向に 10mm 移動
+        offset_y = -5,        # ↓方向に -5mm 移動
+        decimal_digits = 3    # 小数点以下3桁
 )
 
 
