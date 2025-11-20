@@ -4,8 +4,13 @@ from list2gcode.processor import (
     export_curve_csv,
     generate_rotandscale_curves
 )
-
-curve_list = capture_and_extract_curve_list()
+"""
+curve_list = capture_and_extract_curve_list(source="camera")
+"""
+curve_list = capture_and_extract_curve_list(
+    source="image",
+    image_path="/Users/kawashimasatoshishin/cutting_machine/gcodegenerator/fri.jpg"
+)
 
 if curve_list is None:
     print("中断されました")
