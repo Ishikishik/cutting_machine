@@ -80,6 +80,6 @@ def slider_plot_csv(path, show_penup=True):
 # =====================================================
 if __name__ == "__main__":
     slider_plot_csv(
-        "/Users/kawashimasatoshishin/cutting_machine/gcodegenerator/output_curves.csv",
+        "/Users/kawashimasatoshishin/cutting_machine/output_curves.csv",
         show_penup=False   # ← ペンアップだけ白になるモード
     )
