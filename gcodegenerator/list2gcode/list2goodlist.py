@@ -4,6 +4,7 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 from matplotlib.colors import hsv_to_rgb
+import csv
 
 
 # =========================================================
@@ -108,3 +109,73 @@ def visualize_curves(curve_list):
             ax.plot([x0, x1], [y0, y1], '-', color=rgb, linewidth=2)
 
     plt.show()
+
+
+# =========================================================
+# 曲線間の順番を TSP（近傍法）で最適化
+# =========================================================
+
+def tsp_order(curve_list):
+    """
+    TSP（近傍法）
+    各曲線の exit -> entry の距離で最小移動順を決める
+    """
+
+    N = len(curve_list)
+
+    # entry = 曲線の最初の点
+    # exit  = 曲線の最後の点
+    entries = np.array([curve["points"][0]  for curve in curve_list])
+    exits   = np.array([curve["points"][-1] for curve in curve_list])
+
+    # 距離行列 exit[i] → entry[j]
+    dist = np.zeros((N, N))
+    for i in range(N):
+        for j in range(N):
+            dist[i, j] = np.linalg.norm(exits[i] - entries[j])
+
+    # ---- 近傍法 ----
+    unvisited = set(range(N))
+    route = []
+
+    # 便宜的に curve 0 から開始
+    current = 0
+    route.append(current)
+    unvisited.remove(current)
+
+    while unvisited:
+        nxt = min(unvisited, key=lambda j: dist[current, j])
+        route.append(nxt)
+        unvisited.remove(nxt)
+        current = nxt
+
+    return route
+
+
+def reorder_curves_by_tsp(curve_list):
+    """
+    curve_list（内部順序済み）を
+    TSP順に並べ替えて返す
+    """
+    order = tsp_order(curve_list)
+    return [curve_list[i] for i in order]
+
+
+
+
+def save_curve_list_to_csv(curve_list, path="curves.csv"):
+    """
+    curve_list を CSV に保存する
+    フォーマット:
+    curve_id, index, x, y
+    """
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["curve_id", "index", "x", "y"])
+
+        for curve in curve_list:
+            cid = curve["curve_id"]
+            for i, (x, y) in enumerate(curve["points"]):
+                writer.writerow([cid, i, x, y])
+
+    print(f"CSV 保存完了: {path}")
