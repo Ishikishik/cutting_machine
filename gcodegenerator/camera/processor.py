@@ -11,6 +11,7 @@ from .library import (
 
 BASE_DIR = Path(__file__).resolve().parent
 
+
 # -------------------------------------------------------
 # 色決定（固定色アルゴリズム）
 # -------------------------------------------------------
@@ -22,9 +23,21 @@ def id_to_color(i):
 
 
 # -------------------------------------------------------
-# 輪郭抽出 → 曲線データ返す
+# JPG から画像を読み込む
+# -------------------------------------------------------
+def load_image_from_file(image_path):
+    img = cv2.imread(str(image_path))
+    if img is None:
+        raise FileNotFoundError(f"❌ 画像読み込み失敗: {image_path}")
+    print(f"🖼 画像ファイルを読み込みました: {image_path}")
+    return img
+
+
+# -------------------------------------------------------
+# findContours → 曲線抽出
 # -------------------------------------------------------
 def extract_curve_list(line_img, max_curves=70, min_points=5):
+
     if len(line_img.shape) == 3:
         gray = cv2.cvtColor(line_img, cv2.COLOR_BGR2GRAY)
     else:
@@ -44,7 +57,6 @@ def extract_curve_list(line_img, max_curves=70, min_points=5):
     )[:max_curves]
 
     curve_list = []
-
     for idx, cnt in enumerate(contours, start=1):
         pts = cnt.reshape(-1, 2)
         pts_list = [(int(x), int(y)) for (x, y) in pts]
@@ -54,9 +66,10 @@ def extract_curve_list(line_img, max_curves=70, min_points=5):
 
 
 # -------------------------------------------------------
-# 親ディレクトリの main から呼び出す関数
+# カメラ撮影で画像を取得
 # -------------------------------------------------------
-def capture_and_extract_curve_list():
+def capture_image_from_camera():
+
     print("カメラを起動します... (Space: 撮影 / q: 終了)")
 
     cap = cv2.VideoCapture(0)
@@ -68,10 +81,7 @@ def capture_and_extract_curve_list():
 
     cv2.namedWindow("Camera Preview", cv2.WINDOW_NORMAL)
 
-    # --------------------
-    # 撮影フェーズ
-    # --------------------
-    img = None  # ← 必ず初期化
+    img = None
 
     while True:
         ret, frame = cap.read()
@@ -80,13 +90,9 @@ def capture_and_extract_curve_list():
             print("❌ フレーム取得失敗")
             continue
 
-        # ---- プレビュー用にクロップ ----
         preview = crop_to_aspect(frame, PREVIEW_W, PREVIEW_H)
-
-        # ---- 顔検出（プレビューに対して）----
         faces_live = detect_face_once(preview)
 
-        # ---- プレビュー描画 ----
         preview_display = preview.copy()
         for (x, y, w, h) in faces_live:
             cv2.rectangle(preview_display, (x, y, w, h), (0, 255, 0), 2)
@@ -95,7 +101,7 @@ def capture_and_extract_curve_list():
 
         cv2.imshow("Camera Preview", preview_display)
 
-        key = cv2.waitKey(10) & 0xFF  # macOS は 10 の方が安定
+        key = cv2.waitKey(10) & 0xFF
 
         if key == ord(' '):  # 撮影
             img = frame.copy()
@@ -112,66 +118,80 @@ def capture_and_extract_curve_list():
     cap.release()
     cv2.destroyAllWindows()
 
-    # ---- imgがNoneなら撮影失敗 ----
-    if img is None:
-        print("❌ 撮影された画像がありません（img が None）")
-        return None
+    return img
 
-    # --------------------
+
+# -------------------------------------------------------
+# 親 main から呼び出す統合関数（camera / image）
+# -------------------------------------------------------
+def capture_and_extract_curve_list(
+        source="camera",
+        image_path=None
+    ):
+    """
+    source="camera" → カメラ撮影
+    source="image"  → JPEGから読み込み
+    """
+
+    # -------------------------
+    # 画像入力
+    # -------------------------
+    if source == "camera":
+        img = capture_image_from_camera()
+        if img is None:
+            print("中断されました")
+            return None
+
+    elif source == "image":
+        if image_path is None:
+            raise ValueError("❌ source='image' では image_path が必要です")
+        img = load_image_from_file(image_path)
+
+    else:
+        raise ValueError(f"❌ 不明な source 指定: {source}")
+
+    # -------------------------
     # 縦横比補正
-    # --------------------
+    # -------------------------
     TARGET_W = 1000
     TARGET_H = 1480
     img = resize_with_aspect(img, TARGET_W, TARGET_H)
 
-    # --------------------
-    # 顔検出（本番画像）
-    # --------------------
+    # -------------------------
+    # 顔検出
+    # -------------------------
     faces = detect_face_once(img)
 
-    # --------------------
+    # -------------------------
     # 調整ウィンドウ
-    # --------------------
+    # -------------------------
     face_strength = 40
     cloth_strength = 120
-
-    WINDOW_NAME = "Line Adjustment"
-    cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_AUTOSIZE)
-
     curve_count = 70
+
+    cv2.namedWindow("Line Adjustment", cv2.WINDOW_AUTOSIZE)
     cv2.namedWindow("Curve Preview", cv2.WINDOW_AUTOSIZE)
 
     while True:
-        # 線画化
         line_img = line_drawing_image(img, face_strength, cloth_strength, faces)
 
-        # プレビュー1
-        display_img = cv2.cvtColor(line_img, cv2.COLOR_GRAY2BGR)
+        disp = cv2.cvtColor(line_img, cv2.COLOR_GRAY2BGR)
         for (x, y, w, h) in faces:
-            cv2.rectangle(display_img, (x, y), (x+w, y+h), (0, 255, 0), 2)
-        cv2.imshow(WINDOW_NAME, display_img)
+            cv2.rectangle(disp, (x, y, w, h), (0, 255, 0), 2)
+        cv2.imshow("Line Adjustment", disp)
 
-        # プレビュー2（曲線）
         curve_preview = preview_curve_groups(line_img, curve_count)
-        cv2.rectangle(curve_preview, (0, curve_preview.shape[0] - 25),
-                      (curve_preview.shape[1], curve_preview.shape[0]),
-                      (0, 0, 0), -1)
-        cv2.putText(curve_preview,
-                    f"Curve Count: {curve_count}",
-                    (10, curve_preview.shape[0] - 7),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                    (255, 255, 255), 1)
         cv2.imshow("Curve Preview", curve_preview)
 
         key = cv2.waitKey(30) & 0xFF
 
-        # 線の本数調整
+        # 曲線数変更
         if key == ord('p'):
             curve_count = max(5, curve_count - 5)
         elif key == ord('o'):
             curve_count = min(200, curve_count + 5)
 
-        # 顔・服の強さ調整
+        # 閾値調整
         elif key == ord('l'):
             face_strength = max(5, face_strength - 5)
         elif key == ord('k'):
@@ -181,15 +201,16 @@ def capture_and_extract_curve_list():
         elif key == ord('n'):
             cloth_strength = min(300, cloth_strength + 5)
 
-        elif key == 13:   # ENTER
+        elif key == 13:  # ENTER
             break
-        elif key in [27]:
+
+        elif key in [27]:  # ESC
             cv2.destroyAllWindows()
             return None
 
     cv2.destroyAllWindows()
 
-    # ------------------------------------------------
-    # 最終 result（曲線データリスト）を返す
-    # ------------------------------------------------
+    # -------------------------
+    # 曲線リスト抽出
+    # -------------------------
     return extract_curve_list(line_img, max_curves=curve_count)
