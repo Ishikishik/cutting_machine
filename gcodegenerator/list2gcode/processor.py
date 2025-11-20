@@ -3,7 +3,9 @@
 from .list2goodlist import (
     simplify_curve,
     reorder_curve,
-    visualize_curves
+    visualize_curves,
+    reorder_curves_by_tsp,
+    save_curve_list_to_csv
 )
 
 
@@ -33,3 +35,16 @@ def process_curve_list(curve_list):
     visualize_curves(processed)
 
     return processed
+
+
+def sort_curves_tsp(curve_list):
+    """
+    TSP を使って曲線全体の描画順を決める。
+    内部順序は既に正しいものとする。
+    """
+    sorted_list = reorder_curves_by_tsp(curve_list)
+    return sorted_list
+
+
+def export_curve_csv(curve_list, filename="curves.csv"):
+    save_curve_list_to_csv(curve_list, filename)
