@@ -299,3 +299,23 @@ def round_curve_list(curve_list, ndigits=3):
             "points": pts_round
         })
     return new_list
+
+
+def translate_points(points, dx, dy):
+    """
+    1 曲線の points に対して x→dx, y→dy だけ平行移動
+    """
+    return [(float(x + dx), float(y + dy)) for (x, y) in points]
+
+
+def translate_curve_list(curve_list, dx, dy):
+    """
+    curve_list 全体を平行移動
+    """
+    new_list = []
+    for curve in curve_list:
+        new_list.append({
+            "curve_id": curve["curve_id"],
+            "points": translate_points(curve["points"], dx, dy)
+        })
+    return new_list
