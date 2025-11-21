@@ -1,4 +1,5 @@
 # list2gcode/processor.py
+import numpy as np
 
 from .list2goodlist import (
     simplify_curve,
@@ -89,3 +90,128 @@ def generate_rotandscale_curves(curve_list,
 
 
 
+
+
+
+
+
+
+
+
+"""
+角度に変換
+"""
+
+# ================================
+#   processor.py（新しい関数追加）
+# ================================
+from .makegcode import (
+    load_lut,
+    radcheck,
+    plot_full_arm
+)
+import numpy as np
+
+
+def ik_from_lut_all(x, y, lut):
+    """
+    LUTの全候補を返す。
+    戻り値は err が小さい順のリスト:
+       [(err, theta_L, theta_R), ...]
+    """
+    results = []
+    for (thL, thR, lx, ly) in lut:
+        err = np.hypot(lx - x, ly - y)
+        results.append((err, thL, thR))
+
+    results.sort(key=lambda v: v[0])
+    return results   # 近い順になっている
+
+
+def genrad_lut(final_curves,
+               lut_path="lut_angles_to_xy.csv",
+               max_err_mm=1.0,
+               l1=65, l2=85, d=50, offset=25):
+    """
+    LUT方式の角度変換関数（完全版）
+    radcheck=false の場合は次の候補を探索する
+    """
+
+    lut = load_lut(lut_path)
+    output = []
+
+    for curve in final_curves:
+
+        cid = curve["curve_id"]
+        pts = curve["points"]
+
+        new_pts = []
+
+        prev_L = None
+        prev_R = None
+
+        for idx, (x, y) in enumerate(pts):
+
+            # ----① LUTを距離順に候補化 ----
+            cand_list = ik_from_lut_all(x, y, lut)
+
+            chosen = None
+
+            # ----② 候補を順に試す ----
+            for err_lut, thL_raw, thR_raw in cand_list:
+
+                if err_lut > max_err_mm:
+                    break  # これ以上は遠すぎる
+
+                thL = thL_raw
+                thR = thR_raw
+
+                # ---- radcheck: NG なら次候補へ ----
+                if not radcheck(thL, thR):
+                    continue
+
+                # ---- 順運動で最終チェック ----
+                result = plot_full_arm(
+                    thL, thR,
+                    l1=l1, l2=l2, d=d, offset=offset,
+                    plot=False
+                )
+
+                if result is None:
+                    continue
+
+                P_tip, _, _, _ = result
+                err_fk = np.hypot(P_tip[0] - x, P_tip[1] - y)
+
+                if err_fk > max_err_mm:
+                    continue
+
+                # ---- 前回角度に最も近いものを優先 ----
+                if prev_L is not None:
+                    angle_cost = (
+                        abs(thL - prev_L) +
+                        abs(thR - prev_R)
+                    )
+                else:
+                    angle_cost = 0  # 1点目は無条件に採用可
+
+                chosen = (angle_cost, thL, thR)
+                break
+
+            # ----③ 候補なし ----
+            if chosen is None:
+                new_pts.append((x, y, None, None))
+                continue
+
+            _, thL_sel, thR_sel = chosen
+            prev_L, prev_R       = thL_sel, thR_sel
+
+            # ----④ 保存 ----
+            new_pts.append((x, y, thL_sel, thR_sel))
+
+        output.append({
+            "curve_id": cid,
+            "points": new_pts
+        })
+
+    return output

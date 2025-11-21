@@ -166,18 +166,34 @@ def reorder_curves_by_tsp(curve_list):
 
 def save_curve_list_to_csv(curve_list, path="curves.csv"):
     """
-    curve_list を CSV に保存する
+    curve_list を CSV に保存する。
     フォーマット:
-    curve_id, index, x, y
+        curve_id, index, x, y, theta_L, theta_R
     """
+
     with open(path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(["curve_id", "index", "x", "y"])
+
+        # ヘッダー
+        writer.writerow(["curve_id", "index", "x", "y", "theta_L", "theta_R"])
 
         for curve in curve_list:
             cid = curve["curve_id"]
-            for i, (x, y) in enumerate(curve["points"]):
-                writer.writerow([cid, i, x, y])
+
+            for i, pt in enumerate(curve["points"]):
+
+                # pt の形式： (x, y, thL, thR)
+                if len(pt) == 4:
+                    x, y, thL, thR = pt
+                elif len(pt) == 2:
+                    # 安全対策：角度なしのケースも対応
+                    x, y = pt
+                    thL = None
+                    thR = None
+                else:
+                    raise ValueError(f"Unexpected point format: {pt}")
+
+                writer.writerow([cid, i, x, y, thL, thR])
 
     print(f"CSV 保存完了: {path}")
 
