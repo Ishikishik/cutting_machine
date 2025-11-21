@@ -5,6 +5,7 @@
 import csv
 import numpy as np
 import matplotlib.pyplot as plt
+import pickle
 
 # ============================================================
 #  FK-1 : 第一リンク（l1）先端座標を求める
@@ -185,6 +186,13 @@ def load_lut(path="/Users/kawashimasatoshishin/cutting_machine/gcodegenerator/li
             y   = float(r["y"])
             lut.append((thL, thR, x, y))
     return lut
+
+
+def load_kdtree(path="lut_tree.pkl"):
+    with open(path, "rb") as f:
+        tree, thL, thR = pickle.load(f)
+    return tree, thL, thR
+
 
 
 # =========================================
