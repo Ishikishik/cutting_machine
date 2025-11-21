@@ -2,14 +2,15 @@ from camera.processor import capture_and_extract_curve_list
 from list2gcode.processor import (
     sort_curves_tsp,
     export_curve_csv,
-    generate_rotandscale_curves
+    generate_rotandscale_curves,
+    genrad_kdtree,
 )
 """
 curve_list = capture_and_extract_curve_list(source="camera")
 """
 curve_list = capture_and_extract_curve_list(
     source="image",
-    image_path="/Users/kawashimasatoshishin/cutting_machine/gcodegenerator/fri.jpg"
+    image_path="/Users/kawashimasatoshishin/cutting_machine/gcodegenerator/five.png"
 )
 
 if curve_list is None:
@@ -24,11 +25,17 @@ else:
         rotate_deg = 90,      # 90°回転
         box_w = 100,          # ハガキ短辺
         box_h = 148,          # ハガキ長辺
-        offset_x = 10,        # →方向に 10mm 移動
-        offset_y = -5,        # ↓方向に -5mm 移動
+        offset_x = -148/2,        # →方向に 10mm 移動
+        offset_y = 50,        # ↓方向に -5mm 移動
         decimal_digits = 3    # 小数点以下3桁
+)
+    result = genrad_kdtree(
+    final_curves,
+    lut_path="/Users/kawashimasatoshishin/cutting_machine/gcodegenerator/list2gcode/lut_tree.pkl"
 )
 
 
+
     # CSV に保存
-    export_curve_csv(final_curves, "output_curves.csv")
+    export_curve_csv(result, "output_curves.csv")
+    print(final_curves)

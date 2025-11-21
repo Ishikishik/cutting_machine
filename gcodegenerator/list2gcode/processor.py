@@ -1,4 +1,5 @@
 # list2gcode/processor.py
+import numpy as np
 
 from .list2goodlist import (
     simplify_curve,
@@ -89,3 +90,62 @@ def generate_rotandscale_curves(curve_list,
 
 
 
+
+
+
+
+
+
+
+
+"""
+角度に変換
+"""
+
+# ================================
+#   processor.py（新しい関数追加）
+# ================================
+from .makegcode import load_kdtree, radcheck
+
+def genrad_kdtree(final_curves,
+                  lut_path="lut_tree.pkl",
+                  max_error_mm=1.0):
+
+    print("KD-tree をロード中:", lut_path)
+    tree, thL_list, thR_list = load_kdtree(lut_path)
+
+    output = []
+
+    for curve in final_curves:
+        cid = curve["curve_id"]
+        pts = curve["points"]
+
+        new_pts = []
+        prev_L = None
+        prev_R = None
+
+        for (x, y) in pts:
+
+            # KD-tree 最近傍
+            dist, idx = tree.query([x, y])
+
+            if dist > max_error_mm:
+                new_pts.append((x, y, None, None))
+                continue
+
+            thL = thL_list[idx]
+            thR = thR_list[idx]
+
+            # radcheck（干渉チェック）
+            if not radcheck(thL, thR):
+                new_pts.append((x, y, None, None))
+                continue
+
+            new_pts.append((x, y, thL, thR))
+
+        output.append({
+            "curve_id": cid,
+            "points": new_pts
+        })
+
+    return output
