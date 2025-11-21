@@ -214,3 +214,7 @@ def capture_and_extract_curve_list(
     # 曲線リスト抽出
     # -------------------------
     return extract_curve_list(line_img, max_curves=curve_count)
+
+
+
+
