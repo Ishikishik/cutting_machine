@@ -166,7 +166,8 @@ def plot_full_arm(theta_l_deg, theta_r_deg, l1=65, l2=85, d=50, offset=25, plot=
         plt.title(f"θL={theta_l_deg}°, θR={theta_r_deg}°（offset={offset}mm）")
         plt.show()
 
-    # --- 順運動の結果を返す ---    return P_tip, P, L_tip, R_tip
+    # --- 順運動の結果を返す ---    
+    return P_tip, P, L_tip, R_tip
 
 # =========================================
 #  🔵 新規追加: LUT 読み込み
@@ -198,7 +199,7 @@ def load_kdtree(path="lut_tree.pkl"):
 # =========================================
 #  🔵 新規追加: LUT から最も近い角度を検索する
 # =========================================
-def ik_from_lut(x, y, lut, max_dist=1.0):
+def ik_from_lut(x, y, lut, max_dist=2.0):
     """
     ペン先 (x,y) に最も近い LUT の点を返す。
     max_dist mm 以内のものだけ採用する。
@@ -232,3 +233,6 @@ def radcheck(thL, thR):
     今は常に OK とする。
     """
     return True
+
+
+
