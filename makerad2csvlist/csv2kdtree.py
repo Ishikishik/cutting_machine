@@ -36,4 +36,4 @@ def generate_kdtree_from_csv(csv_path="rad2xy.csv", out_pkl="lut_tree.pkl"):
 
 
 # 実行
-generate_kdtree_from_csv("/Users/kawashimasatoshishin/cutting_machine/makerad2csvlist/angles_to_xy.csv", "lut_tree.pkl")
+generate_kdtree_from_csv("/Users/kawashimasatoshishin/cutting_machine/makerad2csvlist/1-16angles_to_xy.csv", "1-16lut_tree.pkl")

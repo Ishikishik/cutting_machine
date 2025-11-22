@@ -191,7 +191,7 @@ def genrad_kdtree(final_curves,
 # =========================================
 import csv
 
-STEP_DEG = 1.8  # 1ステップ = 1.8度
+STEP_DEG = 0.1125  # 1ステップ = 1.8度
 
 def convert_result_to_steps(result, out_csv="abs_steps.csv"):
     """

@@ -32,7 +32,7 @@ else:
 )
     result = genrad_kdtree(
     final_curves,
-    lut_path="/Users/kawashimasatoshishin/cutting_machine/gcodegenerator/list2gcode/lut_tree.pkl"
+    lut_path="/Users/kawashimasatoshishin/cutting_machine/gcodegenerator/list2gcode/1-16lut_tree.pkl"
 )
     step_list = convert_result_to_steps(result, out_csv="steps_for_raspi.csv")
 
