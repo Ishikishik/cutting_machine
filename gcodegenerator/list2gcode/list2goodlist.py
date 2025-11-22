@@ -263,6 +263,73 @@ def scale_to_box(points, target_w, target_h):
     return [(float(x), float(y)) for x, y in pts]
 
 
+#cheikin平滑化
+def chaikin(points, step=2):
+    """
+    points が [(x,y),...] の時だけ Chaikin を適用する。
+    辞書形式なら points['points'] を使う。
+    """
+    # 辞書 {"curve_id":..., "points":[...]} に対応
+    if isinstance(points, dict):
+        pts = points["points"]
+    else:
+        pts = points
+
+    # 点が2個未満ならスムージングできない
+    if len(pts) < 2:
+        return pts
+
+    for _ in range(step):
+        new_pts = []
+        for i in range(len(pts) - 1):
+            x1, y1 = pts[i]
+            x2, y2 = pts[i + 1]
+            Q = (0.75*x1 + 0.25*x2, 0.75*y1 + 0.25*y2)
+            R = (0.25*x1 + 0.75*x2, 0.25*y1 + 0.75*y2)
+            new_pts.extend([Q, R])
+        pts = new_pts
+
+    return pts
+
+
+def convert_to_motor_coords(curve_list, height=100):
+    """
+    辞書形式 {"curve_id":..., "points":[...]} でも、
+    単純リスト [[(x,y)...],...] でも扱える安全版
+    """
+    result = []
+
+    for curve in curve_list:
+
+        # --- 辞書形式の場合 ---
+        if isinstance(curve, dict):
+            cid = curve.get("curve_id", None)
+            pts_in = curve.get("points", [])
+            pts_out = []
+
+            for pt in pts_in:
+                if len(pt) >= 2:
+                    x = pt[0]
+                    y = pt[1]
+                    pts_out.append((x, abs(height - y)))
+
+            result.append({"curve_id": cid, "points": pts_out})
+            continue
+
+        # --- 単純リストの場合 ---
+        pts_out = []
+        for pt in curve:
+            if len(pt) >= 2:
+                x = pt[0]
+                y = pt[1]
+                pts_out.append((x, abs(height - y)))
+
+        result.append(pts_out)
+
+    return result
+
+
+
 def scale_curve_list(curve_list, target_w, target_h):
     """
     curve_list 全体を target_w × target_h に収める

@@ -1,11 +1,7 @@
-# =========================
-#   makegcode.py (LUT対応版)
-# =========================
-
 import csv
 import numpy as np
 import matplotlib.pyplot as plt
-import pickle
+
 
 # ============================================================
 #  FK-1 : 第一リンク（l1）先端座標を求める
@@ -167,72 +163,81 @@ def plot_full_arm(theta_l_deg, theta_r_deg, l1=65, l2=85, d=50, offset=25, plot=
         plt.show()
 
     # --- 順運動の結果を返す ---    
-    return P_tip, P, L_tip, R_tip
-
-# =========================================
-#  🔵 新規追加: LUT 読み込み
-# =========================================
-def load_lut(path="/Users/kawashimasatoshishin/cutting_machine/gcodegenerator/list2gcode/rad2xy.csv"):
-    """
-    LUT CSV を読み込んで配列として返す
-    columns = [theta_L, theta_R, x, y]
-    """
-    lut = []
-    with open(path, "r", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for r in reader:
-            thL = float(r["theta_L"])
-            thR = float(r["theta_R"])
-            x   = float(r["x"])
-            y   = float(r["y"])
-            lut.append((thL, thR, x, y))
-    return lut
-
-
-def load_kdtree(path="lut_tree.pkl"):
-    with open(path, "rb") as f:
-        tree, thL, thR = pickle.load(f)
-    return tree, thL, thR
+    return P_tip, P, L_tip, R_tip 
 
 
 
-# =========================================
-#  🔵 新規追加: LUT から最も近い角度を検索する
-# =========================================
-def ik_from_lut(x, y, lut, max_dist=2.0):
-    """
-    ペン先 (x,y) に最も近い LUT の点を返す。
-    max_dist mm 以内のものだけ採用する。
+print(plot_full_arm(40,60, l1=65, l2=85, d=50, offset=25, plot=True))
 
-    return:
-        (theta_L, theta_R) or None
-    """
+# 角度リストの生成（-180 ～ 180 を 1.8° 刻み）
+ANGLES = np.arange(-180, 180 + 1e-6, 1.8)
+# モーター位置
+D = 50
+LEFT_MOTOR_X  = -D/2     # -25
+RIGHT_MOTOR_X = +D/2     # +25
 
-    best = None
-    best_err = 1e12
+# モーター位置
+D = 50
+LEFT_MOTOR_X  = -D/2   # -25
+RIGHT_MOTOR_X = +D/2   # +25
 
-    for (thL, thR, lx, ly) in lut:
-        err = np.hypot(lx - x, ly - y)
-        if err < best_err:
-            best_err = err
-            best = (thL, thR)
+def generate_angle_csv(outpath="angles_to_xy.csv"):
+    rows = []
+    total = 0
+    ok = 0
 
-    if best_err <= max_dist:
-        return best
-    else:
-        return None
+    for thL in ANGLES:
+        for thR in ANGLES:
+
+            total += 1
+
+            # 順運動
+            result = plot_full_arm(
+                thL, thR,
+                l1=65, l2=85, d=D, offset=25,
+                plot=False
+            )
+
+            if result is None:
+                continue
+
+            P_tip, P, L_tip, R_tip = result
+
+            Lx, Ly = L_tip
+            Rx, Ry = R_tip
+            Px, Py = P
+
+            # 第二関節の左右関係
+            if not (Lx + 1 < Px < Rx - 1):
+                continue
+
+            # 両方の第一関節が低い（危険領域）
+            if Ly < 20 and Ry < 20:
+                continue
+
+            # 左第一関節が右モーター側へ大きく侵入したらNG（余裕を持たせる）
+            if Lx > RIGHT_MOTOR_X + 10 and Ly < -10:
+                continue
+
+            # 右第一関節が左側へ大きく侵入したらNG
+            if Rx < LEFT_MOTOR_X - 10 and Ry < -10:
+                continue
 
 
-# =========================================
-#  🔵 新規追加: radcheck（今はダミー）
-# =========================================
-def radcheck(thL, thR):
-    """
-    機構干渉などを後でここで実装する。
+            # ------------------------------------------------------
+            # すべての安全チェックを通過した場合のみ採用
+            # ------------------------------------------------------
 
-    今は常に OK とする。
-    """
-    return True
+            x, y = P_tip
+            rows.append([thL, thR, x, y])
+            ok += 1
 
+    print(f"総角度={total}  OK={ok}  (安全角度のみ採用)")
+    print(f"CSV → {outpath}")
 
+    with open(outpath, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["theta_L", "theta_R", "x", "y"])
+        writer.writerows(rows)
 
+generate_angle_csv(outpath="angles_to_xy.csv")
