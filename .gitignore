@@ -1,6 +1,8 @@
 gcodegenerator/qiita.png
 gcodegenerator/list2gcode/lut_tree.pkl
+gcodegenerator/list2gcode/1-16lut_tree.pkl
 hard/software/cuttingsoft/steps.h
 makerad2csvlist/1-16angles_to_xy.csv
 output_curves.csv
 steps_for_raspi.csv
+makerad2csvlist/1-16angles_to_xy.csv
