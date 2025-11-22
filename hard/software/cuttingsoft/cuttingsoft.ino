@@ -1,89 +1,140 @@
-#include "steps.h"   // ← 配列を最初に読み込む
+#include "steps.h"
 
-// ==== A4988 PIN ==== 
-#define STEP_L 4
-#define DIR_L  5
+// ===============================
+// Pin assignments
+// ===============================
 
-#define STEP_R 2
-#define DIR_R  3
+// Motor A (LEFT)
+#define DIR_A   16
+#define STEP_A  17
+#define MS_A    18
 
-#define STEP_DELAY_US 2000
-#define DIR_STABLE_US 20
+// Motor B (RIGHT)
+#define DIR_B   19
+#define STEP_B  20
+#define MS_B    21
 
-// ==== 安全スイッチ ==== 
-#define SAFETY_PIN 16   // GND=ON, HIGH=OFF
+// motor step angle
+const float motor_step_deg = 1.8;
 
-// ==== 現在位置（絶対ステップ）====
-int curL = 40000;    // 初期角度 45° = 25step
-int curR = 40000;
+// 現在ステップ位置（1/16単位）
+long curA = 400;
+long curB = 400;
 
+// ---------------------------------------------
+// DIR設定（あなたのモーター方向に完全対応）
+// left(A)：CW=正方向 → false
+// right(B)：CCW=正方向 → true
+// ---------------------------------------------
+void set_dir_A(bool positive) {
+    digitalWrite(DIR_A, positive ? LOW  : HIGH); 
+}
 
-// ==== 1ステップ動かす関数 ====
-void stepMotor(int stepPin, int dirPin, bool dir)
+void set_dir_B(bool positive) {
+    digitalWrite(DIR_B, positive ? HIGH : LOW);
+}
+
+// ---------------------------------------------
+// 2モーター同時ステップ（micro=1 or 16）
+// ---------------------------------------------
+void move_to(long targetA, long targetB, int micro)
 {
-  digitalWrite(dirPin, dir);
-  delayMicroseconds(DIR_STABLE_US);
+    long diffA = targetA - curA;
+    long diffB = targetB - curB;
 
-  digitalWrite(stepPin, HIGH);
-  delayMicroseconds(STEP_DELAY_US);
-  digitalWrite(stepPin, LOW);
-  delayMicroseconds(STEP_DELAY_US);
+    int dirA = (diffA >= 0);
+    int dirB = (diffB >= 0);
+
+    long stepsA = abs(diffA);
+    long stepsB = abs(diffB);
+
+    long maxSteps = max(stepsA, stepsB);
+
+    // DIR設定（あなたの定義に合わせて）
+    set_dir_A(dirA);
+    set_dir_B(dirB);
+
+    for (long i = 0; i < maxSteps; i++) {
+
+        if (i < stepsA) digitalWrite(STEP_A, HIGH);
+        if (i < stepsB) digitalWrite(STEP_B, HIGH);
+
+        delayMicroseconds(1000);
+
+        digitalWrite(STEP_A, LOW);
+        digitalWrite(STEP_B, LOW);
+
+        delayMicroseconds(1000);
+    }
+
+    // 位置更新
+    curA = targetA;
+    curB = targetB;
 }
 
-// ==== 安全スイッチ ====
-bool safetyOff() {
-  return digitalRead(SAFETY_PIN) == HIGH;
+// ---------------------------------------------
+// Fullstep高速 → microstep補正モード移動
+// ---------------------------------------------
+void go_with_full_and_micro(long targetA, long targetB)
+{
+    long diffA = targetA - curA;
+    long diffB = targetB - curB;
+
+    // fullstep で行ける分だけ動かす
+    long fullA = diffA / 16;   // ← 1フルステップ = 16マイクロステップ
+    long fullB = diffB / 16;
+
+    long fullTargetA = curA + fullA * 16;
+    long fullTargetB = curB + fullB * 16;
+
+    // ---- fullstep ----
+    digitalWrite(MS_A, LOW);
+    digitalWrite(MS_B, LOW);
+    move_to(fullTargetA, fullTargetB, 1);
+
+    // ---- microstep で残りを補正 ----
+    digitalWrite(MS_A, HIGH);
+    digitalWrite(MS_B, HIGH);
+    move_to(targetA, targetB, 16);
 }
 
+// ---------------------------------------------
 void setup() {
-  pinMode(STEP_L, OUTPUT);
-  pinMode(DIR_L, OUTPUT);
+    pinMode(DIR_A, OUTPUT);
+    pinMode(STEP_A, OUTPUT);
+    pinMode(MS_A, OUTPUT);
 
-  pinMode(STEP_R, OUTPUT);
-  pinMode(DIR_R, OUTPUT);
-
-  pinMode(SAFETY_PIN, INPUT_PULLUP);
+    pinMode(DIR_B, OUTPUT);
+    pinMode(STEP_B, OUTPUT);
+    pinMode(MS_B, OUTPUT);
 }
 
+// ---------------------------------------------
 void loop() {
 
-  // 安全スイッチ
-  while (safetyOff()) delay(10);
+    int prevCurve = steps[0][0];
 
-  // ★ ここで毎回リセット
-  curL = 25;
-  curR = 25;
+    // 初期位置は手動で (400,400) に合わせている前提
 
-  for (int i = 0; i < total_steps; i++) {
+    for (int i = 0; i < sizeof(steps)/sizeof(steps[0]); i++) {
 
-    if (safetyOff()) return;
+        int curve = steps[i][0];
+        int targetA = steps[i][1];
+        int targetB = steps[i][2];
 
-    int targetL = steps[i][1];
-    int targetR = steps[i][2];
+        if (curve != prevCurve) {
+            // curve切替 → fullstep高速→micro補正
+            go_with_full_and_micro(targetA, targetB);
+        } else {
+            // 同じcurve → microstepで通常移動
+            digitalWrite(MS_A, HIGH);
+            digitalWrite(MS_B, HIGH);
+            move_to(targetA, targetB, 16);
+        }
 
-    int diffL = targetL - curL;
-    int diffR = targetR - curR;
-
-    int moveMax = max(abs(diffL), abs(diffR));
-
-    for (int s = 0; s < moveMax; s++) {
-
-      if (safetyOff()) return;
-
-      if (s < abs(diffL)) {
-        bool dirL = diffL > 0;
-        stepMotor(STEP_L, DIR_L, dirL);
-        curL += (dirL ? 1 : -1);
-      }
-
-      if (s < abs(diffR)) {
-        bool dirR = diffR > 0;
-        stepMotor(STEP_R, DIR_R, dirR);
-        curR += (dirR ? 1 : -1);
-      }
+        prevCurve = curve;
     }
-  }
 
-  // 動作終了
-  while (1);
+
+    while(1);
 }

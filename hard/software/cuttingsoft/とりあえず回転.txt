@@ -1,0 +1,129 @@
+// ===============================
+// Pin assignments
+// ===============================
+
+// Motor A
+#define DIR_A   16
+#define STEP_A  17
+#define MS_A    18
+
+// Motor B
+#define DIR_B   19
+#define STEP_B  20
+#define MS_B    21
+
+const float motor_step_deg = 1.8;  // モーターの基本ステップ角
+
+// ================================================
+// 任意角度分動かす関数（2台同時にステッピング）
+// micro = 1（フル）、16（1/16）
+// ================================================
+void rotate_deg_both(float degA, float degB, bool cwA, bool cwB, int micro) {
+
+  int stepsA = (int)((degA / motor_step_deg) * micro);
+  int stepsB = (int)((degB / motor_step_deg) * micro);
+
+  // 最大ステップ数（ループ回数）
+  int maxSteps = max(stepsA, stepsB);
+
+  // 方向設定
+  digitalWrite(DIR_A, cwA ? HIGH : LOW);
+  digitalWrite(DIR_B, cwB ? HIGH : LOW);
+
+  for (int i = 0; i < maxSteps; i++) {
+
+    // Aモーターのステップが残っているか
+    if (i < stepsA) {
+      digitalWrite(STEP_A, HIGH);
+    }
+
+    // Bモーターのステップが残っているか
+    if (i < stepsB) {
+      digitalWrite(STEP_B, HIGH);
+    }
+
+    delayMicroseconds(1200);
+
+    // LOWに戻す
+    digitalWrite(STEP_A, LOW);
+    digitalWrite(STEP_B, LOW);
+
+    delayMicroseconds(1200);
+  }
+}
+
+void setup() {
+  pinMode(DIR_A, OUTPUT);
+  pinMode(STEP_A, OUTPUT);
+  pinMode(MS_A, OUTPUT);
+
+  pinMode(DIR_B, OUTPUT);
+  pinMode(STEP_B, OUTPUT);
+  pinMode(MS_B, OUTPUT);
+
+  // EN は両方とも常に LOW（外部で固定）
+}
+
+void loop() {
+
+  // ============================
+  // ① フルステップで動かす
+  // ============================
+  digitalWrite(MS_A, LOW);
+  digitalWrite(MS_B, LOW);   // → フルステップ
+
+  // 2台とも右に30°
+  rotate_deg_both(30.0, 30.0, true, true, 1);
+  delay(500);
+
+  // 2台とも左に30°
+  rotate_deg_both(30.0, 30.0, false, false, 1);
+  delay(1000);
+
+  // ============================
+  // ② 1/16ステップで動かす
+  // ============================
+  digitalWrite(MS_A, HIGH);
+  digitalWrite(MS_B, HIGH);  // → 1/16ステップ
+
+  rotate_deg_both(30.0, 30.0, true, true, 16);
+  delay(500);
+
+  rotate_deg_both(30.0, 30.0, false, false, 16);
+  delay(1000);
+}
+モーターAが左側モーター、モーターBが右側モーターとします。
+  rotate_deg_both(30.0, 30.0, true, true, 16);
+  delay(500);//今の結線だと両方反時計回り
+
+  rotate_deg_both(30.0, 30.0, false, false, 16);
+  delay(1000);//今の結線だと両方時計回り
+
+となっています。次の流れのコードを書いてください。
+左側モーターは時計回りが正、右側モーターは反時計回りが正としています。
+steps.hの中には以下のコードが入っています。
+#pragma once
+static const int steps[][3] = {
+    {1, 0, 400},
+    {1, 400, 0},
+    {1, -20, 400},
+};
+
+    {1, 0, 400},
+    1列目がcurveid,
+    2列目が左側モーターの相対ステップ数、3列目が右側モーターの相対ステップ数、どちらも1/16の時です。
+    つまり基準角度から何ステップどちらの向きに回すかが格納されています。
+最初に人力で45度つまりどちらも相対ステップが400のところに合わせます。そこから全てmicrostepでlistにある角度に順番に合わていき、最終的に45度に戻るコードを書いてください。
+合わせている途中の指示は特にありませんが、リストの相対stepの場所を必ず踏むようにしてください。
+リストの上から順番に実行していきますがcurveidが変わるタイミングでfullstepを使い素早く移動できるように組み込むと私のあなたに対する好感度が上がります。
+正リストは全てmicrostepの相対ステップであることに注意することと、fullstepを使ったとしても必ずmicrostepの相対座標になるようにする必要があります。
+
+
+#include "steps.h"  // {curve_id, L_abs, R_abs}
+#define STEP_L 16
+#define DIR_L  17
+#define MS_L   18  // 左モーターのMSピン
+
+#define STEP_R 19
+#define DIR_R  20
+#define MS_R   21  // 右モーターのMSピン

@@ -11,7 +11,7 @@ curve_list = capture_and_extract_curve_list(source="camera")
 """
 curve_list = capture_and_extract_curve_list(
     source="image",
-    image_path="/Users/kawashimasatoshishin/cutting_machine/gcodegenerator/qiita.png"
+    image_path="/Users/kawashimasatoshishin/cutting_machine/gcodegenerator/i.png"
 )
 
 if curve_list is None:
@@ -27,7 +27,7 @@ else:
         box_w = 148,          # ハガキ短辺
         box_h = 100,          # ハガキ長辺
         offset_x = -148/2,        # →方向に 10mm 移動
-        offset_y = 40,        # ↓方向に -5mm 移動
+        offset_y = 0,        # ↓方向に -5mm 移動
         decimal_digits = 3    # 小数点以下3桁
 )
     result = genrad_kdtree(
