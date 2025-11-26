@@ -14,6 +14,10 @@
 #define STEP_B  20
 #define MS_B    21
 
+
+//sorenoid
+#define SOL 15
+
 // motor step angle
 const float motor_step_deg = 1.8;
 
@@ -39,25 +43,37 @@ void set_dir_B(bool positive) {
 // ---------------------------------------------
 void move_to(long targetA, long targetB, int micro)
 {
+    // diff：絶対座標の差分（microstep単位）
     long diffA = targetA - curA;
     long diffB = targetB - curB;
 
-    int dirA = (diffA >= 0);
-    int dirB = (diffB >= 0);
-
-    long stepsA = abs(diffA);
-    long stepsB = abs(diffB);
-
+    // 1パルスで進む量 micro=1→1, micro=16→16 microstep
+    long stepsA = abs(diffA) / micro;
+    long stepsB = abs(diffB) / micro;
     long maxSteps = max(stepsA, stepsB);
 
-    // DIR設定（あなたの定義に合わせて）
+    bool dirA = (diffA >= 0);
+    bool dirB = (diffB >= 0);
+
     set_dir_A(dirA);
     set_dir_B(dirB);
 
+    long cntA = 0;
+    long cntB = 0;
+
     for (long i = 0; i < maxSteps; i++) {
 
-        if (i < stepsA) digitalWrite(STEP_A, HIGH);
-        if (i < stepsB) digitalWrite(STEP_B, HIGH);
+        cntA += stepsA;
+        if (cntA >= maxSteps) {
+            digitalWrite(STEP_A, HIGH);
+            cntA -= maxSteps;
+        }
+
+        cntB += stepsB;
+        if (cntB >= maxSteps) {
+            digitalWrite(STEP_B, HIGH);
+            cntB -= maxSteps;
+        }
 
         delayMicroseconds(1000);
 
@@ -67,10 +83,12 @@ void move_to(long targetA, long targetB, int micro)
         delayMicroseconds(1000);
     }
 
-    // 位置更新
+    // microstep単位の絶対座標で更新
     curA = targetA;
     curB = targetB;
 }
+
+
 
 // ---------------------------------------------
 // Fullstep高速 → microstep補正モード移動
@@ -80,8 +98,7 @@ void go_with_full_and_micro(long targetA, long targetB)
     long diffA = targetA - curA;
     long diffB = targetB - curB;
 
-    // fullstep で行ける分だけ動かす
-    long fullA = diffA / 16;   // ← 1フルステップ = 16マイクロステップ
+    long fullA = diffA / 16;
     long fullB = diffB / 16;
 
     long fullTargetA = curA + fullA * 16;
@@ -90,13 +107,16 @@ void go_with_full_and_micro(long targetA, long targetB)
     // ---- fullstep ----
     digitalWrite(MS_A, LOW);
     digitalWrite(MS_B, LOW);
-    move_to(fullTargetA, fullTargetB, 1);
+    delayMicroseconds(1000);
+    move_to(fullTargetA, fullTargetB, 16);
 
-    // ---- microstep で残りを補正 ----
+    // ---- microstep補正 ----
     digitalWrite(MS_A, HIGH);
     digitalWrite(MS_B, HIGH);
-    move_to(targetA, targetB, 16);
+    delayMicroseconds(1000);
+    move_to(targetA, targetB, 1);
 }
+
 
 // ---------------------------------------------
 void setup() {
@@ -107,6 +127,7 @@ void setup() {
     pinMode(DIR_B, OUTPUT);
     pinMode(STEP_B, OUTPUT);
     pinMode(MS_B, OUTPUT);
+    pinMode(SOL, OUTPUT);
 }
 
 // ---------------------------------------------
@@ -122,19 +143,34 @@ void loop() {
         int targetA = steps[i][1];
         int targetB = steps[i][2];
 
-        if (curve != prevCurve) {
-            // curve切替 → fullstep高速→micro補正
-            go_with_full_and_micro(targetA, targetB);
-        } else {
-            // 同じcurve → microstepで通常移動
-            digitalWrite(MS_A, HIGH);
-            digitalWrite(MS_B, HIGH);
-            move_to(targetA, targetB, 16);
+    if (curve != prevCurve) {
+        // curveが変わった時 → ペンを一度確実に上げる
+        if (digitalRead(SOL) == HIGH) {
+            digitalWrite(SOL, LOW);   // ペン上昇
+            delay(20);
         }
+        // 必要ならここで HIGH にして描き始める
+        digitalWrite(SOL, LOW);      // ペン下降
+        delay(20);
+
+        digitalWrite(MS_A, HIGH);
+        digitalWrite(MS_B, HIGH);
+        move_to(targetA, targetB, 1);
+    }
+    else {
+        // curve継続 → 描画を続ける
+        digitalWrite(SOL, HIGH);  // ペンを下げたまま
+        digitalWrite(MS_A, HIGH);
+        digitalWrite(MS_B, HIGH);
+        move_to(targetA, targetB, 1);
+    }
+
 
         prevCurve = curve;
     }
 
 
     while(1);
+    digitalWrite(SOL, LOW);      // ペン下降
+    delay(25);
 }

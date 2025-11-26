@@ -153,8 +153,8 @@ def capture_and_extract_curve_list(
     # -------------------------
     # 縦横比補正
     # -------------------------
-    TARGET_W = 1000
-    TARGET_H = 1480
+    TARGET_W = 550
+    TARGET_H = 910
     img = resize_with_aspect(img, TARGET_W, TARGET_H)
 
     # -------------------------
@@ -187,7 +187,7 @@ def capture_and_extract_curve_list(
 
         # 曲線数変更
         if key == ord('p'):
-            curve_count = max(5, curve_count - 5)
+            curve_count = max(2, curve_count - 5)
         elif key == ord('o'):
             curve_count = min(200, curve_count + 5)
 

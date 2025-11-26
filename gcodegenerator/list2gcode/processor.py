@@ -95,7 +95,7 @@ def generate_rotandscale_curves(curve_list,
 
 
     # モーター座標に変換
-    motor_ready = convert_to_motor_coords(smoothed, height=100)
+    motor_ready = convert_to_motor_coords(smoothed, height=55)
 
     # ③ 平行移動（offset_x, offset_y mm）
     translated = translate_curve_list(motor_ready, offset_x, offset_y)
@@ -243,3 +243,45 @@ def convert_result_to_steps(result, out_csv="abs_steps.csv"):
 
     print(f"絶対ステップ CSV 出力完了 → {out_csv}")
     return out_list
+
+
+
+
+
+
+result_lines = []
+def stepcsv2list(csv_path = "steps_for_raspi.csv", out_path = "steps_cpp.txt"):
+    result_lines = []
+    with open(csv_path, newline='') as f:
+        reader = csv.reader(f)
+        for row in reader:
+
+            # --- 空行はスキップ ---s
+            if not row:
+                continue
+
+            # --- 要素数が3未満ならスキップ ---
+            if len(row) < 3:
+                continue
+
+            # --- 数字に変換できない行（ヘッダー等）はスキップ ---
+            try:
+                cid  = int(row[0])
+                absL = int(row[1])
+                absR = int(row[2])
+            except ValueError:
+                continue
+
+            # C++ 配列形式に変換
+            result_lines.append(f"{{{cid}, {absL}, {absR}}},")
+
+    # ---- 書き込み ----
+    with open(out_path, "w") as f:
+        f.write("#pragma once \n")
+        f.write("static const int steps[][3] = { \n")
+        for line in result_lines:
+            f.write("    " + line + "\n")
+        f.write("};\n")
+        f.write("static const int total_steps = sizeof(steps) / sizeof(steps[0]); \n")
+
+    print("完了！ 出力:", out_path)
