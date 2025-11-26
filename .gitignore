@@ -3,5 +3,7 @@ gcodegenerator/camera/haarcascade_frontalface_default.xml
 gcodegenerator/1-16lut_tree.pkl
 gcodegenerator/output_curves.csv
 
+makerad2csvlist/1-16angles_to_xy.csv
+
 simulate(test)
 test
