@@ -7,3 +7,6 @@ makerad2csvlist/1-16angles_to_xy.csv
 
 simulate(test)
 test
+
+makerad2csvlist/1-16angles_to_xy.csv
+gcodegenerator/list2gcode/1-16lut_tree.pkl 
