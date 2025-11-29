@@ -99,42 +99,6 @@ def save_pgm_for_potrace(line_img, bitmap_pgm):
     line_inv = cv2.bitwise_not(line_img)
     cv2.imwrite(bitmap_pgm, line_inv)
 
-def potrace_to_svg(bitmap_pgm, raw_svg ,turdsize=2 ,alphamax=1.0, opttolerance=0.2):
-    subprocess.run([
-        "potrace",
-        str(bitmap_pgm),
-        "--svg",
-        "--longcurve",
-        "-t", str(turdsize),
-        "-a", str(alphamax),
-        "-O", str(opttolerance),
-        "-o", str(raw_svg)
-    ], check=True)
-    print(f"✅ potrace → {raw_svg}")
-
-def optimize_svg_with_vpype(raw_svg, final_svg):
-    subprocess.run([
-        "vpype",
-        "read", raw_svg,
-        "linemerge",
-        "linesort",
-        "simplify",
-        "write", final_svg
-    ])
-    print(f"🎨 vpype最適化 → {final_svg}")
-
-# === 線画 → SVG まで一発処理 ===
-def convert_to_svg(line_jpg, debug_jpg, bitmap_pgm, raw_svg, final_svg):
-    line_img = cv2.imread(line_jpg, cv2.IMREAD_GRAYSCALE)
-    save_debug_image(line_img, debug_jpg)
-    save_pgm_for_potrace(line_img, bitmap_pgm)
-    potrace_to_svg(bitmap_pgm, raw_svg)
-    optimize_svg_with_vpype(raw_svg, final_svg)
-    print("\n✅ SVG 作成完了 →", final_svg)
-
-
-
-
 
 def preview_curve_groups(line_img, max_curves):
     if len(line_img.shape) == 3:
