@@ -43,4 +43,4 @@ else:
 
     # CSV に保存
     export_curve_csv(result, str(BASE_DIR /   "csvdata" /"output_curves.csv"))
-    stepcsv2list(csv_path = str(BASE_DIR / "csvdata" /"steps_for_raspi.csv"), out_path = str(BASE_DIR /  "csvdata" /"steps_cpp.h"))
+    stepcsv2list(csv_path = str(BASE_DIR / "csvdata" /"steps_for_raspi.csv"), out_path = (BASE_DIR / ".." / "hard" / "software" / "cuttingsoft" / "steps.h").resolve())

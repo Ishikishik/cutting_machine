@@ -1,5 +1,4 @@
 #include "steps.h"
-
 // ===============================
 // Pin assignments
 // ===============================
@@ -13,6 +12,7 @@
 #define DIR_B   19
 #define STEP_B  20
 #define MS_B    21
+#define pulse   1500
 
 
 //sorenoid
@@ -75,12 +75,12 @@ void move_to(long targetA, long targetB, int micro)
             cntB -= maxSteps;
         }
 
-        delayMicroseconds(1000);
+        delayMicroseconds(pulse);
 
         digitalWrite(STEP_A, LOW);
         digitalWrite(STEP_B, LOW);
 
-        delayMicroseconds(1000);
+        delayMicroseconds(pulse);
     }
 
     // microstep単位の絶対座標で更新
@@ -107,13 +107,13 @@ void go_with_full_and_micro(long targetA, long targetB)
     // ---- fullstep ----
     digitalWrite(MS_A, LOW);
     digitalWrite(MS_B, LOW);
-    delayMicroseconds(1000);
+    delayMicroseconds(pulse);
     move_to(fullTargetA, fullTargetB, 16);
 
     // ---- microstep補正 ----
     digitalWrite(MS_A, HIGH);
     digitalWrite(MS_B, HIGH);
-    delayMicroseconds(1000);
+    delayMicroseconds(pulse);
     move_to(targetA, targetB, 1);
 }
 
@@ -128,6 +128,7 @@ void setup() {
     pinMode(STEP_B, OUTPUT);
     pinMode(MS_B, OUTPUT);
     pinMode(SOL, OUTPUT);
+    digitalWrite(SOL, LOW);  // 初期はペンUP
 }
 
 // ---------------------------------------------
