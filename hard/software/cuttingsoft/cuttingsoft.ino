@@ -22,8 +22,8 @@
 const float motor_step_deg = 1.8;
 
 // 現在ステップ位置（1/16単位）
-long curA = 400;
-long curB = 400;
+long curA = 0;
+long curB = 800;
 
 // ---------------------------------------------
 // DIR設定（あなたのモーター方向に完全対応）

@@ -15,7 +15,7 @@ curve_list = capture_and_extract_curve_list(source="camera")
 """
 curve_list = capture_and_extract_curve_list(
     source="image",
-    image_path=str(BASE_DIR / "qiita.png" )
+    image_path=str(BASE_DIR / "bench.png" )
 )
 
 if curve_list is None:
@@ -42,5 +42,5 @@ else:
 
 
     # CSV に保存
-    export_curve_csv(result, str(BASE_DIR /   "csvdata" /"output_curves.csv"))
+    export_curve_csv(result, str(BASE_DIR / "csvdata" /"output_curves.csv"))
     stepcsv2list(csv_path = str(BASE_DIR / "csvdata" /"steps_for_raspi.csv"), out_path = (BASE_DIR / ".." / "hard" / "software" / "cuttingsoft" / "steps.h").resolve())
