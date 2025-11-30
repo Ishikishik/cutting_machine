@@ -165,10 +165,6 @@ def plot_full_arm(theta_l_deg, theta_r_deg, l1=65, l2=85, d=50, offset=25, plot=
     # --- 順運動の結果を返す ---    
     return P_tip, P, L_tip, R_tip 
 
-
-
-print(plot_full_arm(40,60, l1=65, l2=85, d=50, offset=25, plot=True))
-
 # 角度リストの生成（-180 ～ 180 を 1.8° 刻み）
 ANGLES = np.arange(-180, 180 + 1e-6, 0.1125)
 # モーター位置
@@ -240,4 +236,6 @@ def generate_angle_csv(outpath="angles_to_xy.csv"):
         writer.writerow(["theta_L", "theta_R", "x", "y"])
         writer.writerows(rows)
 
-generate_angle_csv(outpath="1-16angles_to_xy.csv")
+#generate_angle_csv(outpath="1-16angles_to_xy.csv")
+
+print(plot_full_arm(0,90, l1=65, l2=85, d=50, offset=25, plot=False))

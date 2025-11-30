@@ -22,8 +22,8 @@
 const float motor_step_deg = 1.8;
 
 // 現在ステップ位置（1/16単位）
-long curA = 400;
-long curB = 400;
+long curA = 0;
+long curB = 800;
 
 // ---------------------------------------------
 // DIR設定（あなたのモーター方向に完全対応）
@@ -47,10 +47,12 @@ void move_to(long targetA, long targetB, int micro)
     long diffA = targetA - curA;
     long diffB = targetB - curB;
 
-    // 1パルスで進む量 micro=1→1, micro=16→16 microstep
+    // microstep → 1パルスで進む量 micro=1→1, micro=16→16 microstep
     long stepsA = abs(diffA) / micro;
     long stepsB = abs(diffB) / micro;
+
     long maxSteps = max(stepsA, stepsB);
+    if (maxSteps == 0) return;
 
     bool dirA = (diffA >= 0);
     bool dirB = (diffB >= 0);
@@ -63,22 +65,30 @@ void move_to(long targetA, long targetB, int micro)
 
     for (long i = 0; i < maxSteps; i++) {
 
+        bool pulseA = false;
+        bool pulseB = false;
+
         cntA += stepsA;
         if (cntA >= maxSteps) {
-            digitalWrite(STEP_A, HIGH);
             cntA -= maxSteps;
+            pulseA = true;
         }
 
         cntB += stepsB;
         if (cntB >= maxSteps) {
-            digitalWrite(STEP_B, HIGH);
             cntB -= maxSteps;
+            pulseB = true;
         }
+
+        // ---- HIGH（同時） ----
+        if (pulseA) digitalWrite(STEP_A, HIGH);
+        if (pulseB) digitalWrite(STEP_B, HIGH);
 
         delayMicroseconds(pulse);
 
-        digitalWrite(STEP_A, LOW);
-        digitalWrite(STEP_B, LOW);
+        // ---- LOW（同時） ----
+        if (pulseA) digitalWrite(STEP_A, LOW);
+        if (pulseB) digitalWrite(STEP_B, LOW);
 
         delayMicroseconds(pulse);
     }
@@ -87,7 +97,6 @@ void move_to(long targetA, long targetB, int micro)
     curA = targetA;
     curB = targetB;
 }
-
 
 
 // ---------------------------------------------
@@ -169,9 +178,9 @@ void loop() {
 
         prevCurve = curve;
     }
-
-
-    while(1);
-    digitalWrite(SOL, LOW);      // ペン下降
+    digitalWrite(SOL, LOW);      // ペン上げる
     delay(25);
+    move_to(400, 400, 1);
+    while(1);
+
 }
