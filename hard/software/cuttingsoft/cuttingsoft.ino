@@ -140,12 +140,9 @@ void setup() {
     digitalWrite(SOL, LOW);  // 初期はペンUP
 }
 
-// ---------------------------------------------
 void loop() {
 
-    int prevCurve = steps[0][0];
-
-    // 初期位置は手動で (400,400) に合わせている前提
+    int prevCurve = -1;  
 
     for (int i = 0; i < sizeof(steps)/sizeof(steps[0]); i++) {
 
@@ -153,34 +150,35 @@ void loop() {
         int targetA = steps[i][1];
         int targetB = steps[i][2];
 
-    if (curve != prevCurve) {
-        // curveが変わった時 → ペンを一度確実に上げる
-        if (digitalRead(SOL) == HIGH) {
-            digitalWrite(SOL, LOW);   // ペン上昇
+        if (curve != prevCurve) {
+            // ---- 曲線グループが変化したとき（新しい線のスタート） ----
+
+            digitalWrite(SOL, LOW);
             delay(20);
+            if (prevCurve != -1) {
+                digitalWrite(SOL, HIGH);
+                delay(20);
+            }
+
+            digitalWrite(MS_A, HIGH);
+            digitalWrite(MS_B, HIGH);
+            move_to(targetA, targetB, 1);
         }
-        // 必要ならここで HIGH にして描き始める
-        digitalWrite(SOL, LOW);      // ペン下降
-        delay(20);
-
-        digitalWrite(MS_A, HIGH);
-        digitalWrite(MS_B, HIGH);
-        move_to(targetA, targetB, 1);
-    }
-    else {
-        // curve継続 → 描画を続ける
-        digitalWrite(SOL, HIGH);  // ペンを下げたまま
-        digitalWrite(MS_A, HIGH);
-        digitalWrite(MS_B, HIGH);
-        move_to(targetA, targetB, 1);
-    }
-
+        else {
+            // ---- 同じ曲線を継続して描画 ----
+            digitalWrite(SOL, HIGH);  // ペンを下げて描く
+            digitalWrite(MS_A, HIGH);
+            digitalWrite(MS_B, HIGH);
+            move_to(targetA, targetB, 1);
+        }
 
         prevCurve = curve;
     }
-    digitalWrite(SOL, LOW);      // ペン上げる
-    delay(25);
-    move_to(400, 400, 1);
-    while(1);
 
+    // 終了処理
+    digitalWrite(SOL, LOW);  // ペン上げ
+    delay(25);
+    move_to(0, 800, 1);
+
+    while(1);
 }

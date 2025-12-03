@@ -167,4 +167,4 @@ def slider_plot_arm_csv(path):
 
 
 if __name__ == "__main__":
-    slider_plot_arm_csv("/Users/kawashimasatoshishin/cutting_machine/gcodegenerator/output_curves.csv")
+    slider_plot_arm_csv("/Users/kawashimasatoshishin/cutting_machine/gcodegenerator/csvdata/output_curves.csv")
