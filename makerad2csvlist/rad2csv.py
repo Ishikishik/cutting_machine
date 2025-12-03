@@ -177,64 +177,117 @@ D = 50
 LEFT_MOTOR_X  = -D/2   # -25
 RIGHT_MOTOR_X = +D/2   # +25
 
-def generate_angle_csv(outpath="angles_to_xy.csv"):
-    rows = []
+def generate_angle_csv(outpath="1-16angles_to_xy.csv"):
+
+    best_map = {}   # key=(x,y) → (score, thL, thR, x, y)
+
+    # ---- キャッシュ用（高速化） ----
+    M_L = np.array([-D/2, 0.0])
+    M_R = np.array([ D/2, 0.0])
+
     total = 0
-    ok = 0
 
     for thL in ANGLES:
         for thR in ANGLES:
 
             total += 1
 
-            # 順運動
             result = plot_full_arm(
                 thL, thR,
                 l1=65, l2=85, d=D, offset=25,
                 plot=False
             )
-
             if result is None:
                 continue
 
             P_tip, P, L_tip, R_tip = result
+            x, y = P_tip  # 先に確保（重要）
 
             Lx, Ly = L_tip
             Rx, Ry = R_tip
-            Px, Py = P
 
-            # 第二関節の左右関係
-            if not (Lx + 1 < Px < Rx - 1):
+            # =====================================
+            # ① 外積による裏側 IK 解の高速フィルタ
+            # =====================================
+
+            # 左側：M_L → P と M_L → L_tip の外積
+            v1x = P[0] - M_L[0]
+            v1y = P[1] - M_L[1]
+            v2x = L_tip[0] - M_L[0]
+            v2y = L_tip[1] - M_L[1]
+            crossL = v1x * v2y - v1y * v2x
+
+            # ★符号は実機に合わせること（推奨：crossL > 0 が正解側）
+            if crossL < 0:
                 continue
 
-            # 両方の第一関節が低い（危険領域）
+            # 右側：M_R → P と M_R → R_tip の外積
+            v1x = P[0] - M_R[0]
+            v1y = P[1] - M_R[1]
+            v2x = R_tip[0] - M_R[0]
+            v2y = R_tip[1] - M_R[1]
+            crossR = v1x * v2y - v1y * v2x
+
+            # （こちらは符号逆：crossR < 0 が正解側のはず）
+            if crossR > 0:
+                continue
+
+            # =====================================
+            # ② 既存の安全フィルタ（軽い順に配置）
+            # =====================================
+
+            # 第二関節が左右関節の間にあるか
+            if not (Lx + 1 < P[0] < Rx - 1):
+                continue
+
+            # 第一関節が低すぎる（危険領域）
             if Ly < 20 and Ry < 20:
                 continue
-
-            # 左第一関節が右モーター側へ大きく侵入したらNG（余裕を持たせる）
             if Lx > RIGHT_MOTOR_X + 10 and Ly < -10:
                 continue
-
-            # 右第一関節が左側へ大きく侵入したらNG
             if Rx < LEFT_MOTOR_X - 10 and Ry < -10:
                 continue
 
+            # =====================================
+            # ③ 安定スコア（最も軽量な形）
+            # =====================================
 
-            # ------------------------------------------------------
-            # すべての安全チェックを通過した場合のみ採用
-            # ------------------------------------------------------
+            # (1) 第一関節間距離（最重要）
+            dist1 = np.hypot(L_tip[0] - R_tip[0], L_tip[1] - R_tip[1])
 
-            x, y = P_tip
-            rows.append([thL, thR, x, y])
-            ok += 1
+            # (2) 第二関節三角形の外積面積（軽量版）
+            vecLx = L_tip[0] - P[0]
+            vecLy = L_tip[1] - P[1]
+            vecRx = R_tip[0] - P[0]
+            vecRy = R_tip[1] - P[1]
+            area = abs(vecLx * vecRy - vecLy * vecRx)
 
-    print(f"総角度={total}  OK={ok}  (安全角度のみ採用)")
+            score = dist1 + 0.3 * area   # 軽く area を加点（重くしすぎない）
+
+            # =====================================
+            # ④ (x,y) をキーにしてベスト1のみ保持
+            # =====================================
+
+            key = (round(x, 3), round(y, 3))  # ← 高速のため 3 桁に
+
+            if key not in best_map or score > best_map[key][0]:
+                best_map[key] = (score, thL, thR, x, y)
+
+    # =====================================
+    # CSV 出力
+    # =====================================
+
+    rows = [ [thL, thR, x, y] for (_, thL, thR, x, y) in best_map.values() ]
+
+    print(f"総計角度={total}, 採用={len(rows)}")
     print(f"CSV → {outpath}")
 
     with open(outpath, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(["theta_L", "theta_R", "x", "y"])
-        writer.writerows(rows)
+        w = csv.writer(f)
+        w.writerow(["theta_L", "theta_R", "x", "y"])
+        w.writerows(rows)
+
+
 
 #generate_angle_csv(outpath="1-16angles_to_xy.csv")
 
