@@ -15,7 +15,7 @@ curve_list = capture_and_extract_curve_list(source="camera")
 """
 curve_list = capture_and_extract_curve_list(
     source="image",
-    image_path=str(BASE_DIR / "yugami2.png" )
+    image_path=str(BASE_DIR / "i.png" )
 )
 
 if curve_list is None:
