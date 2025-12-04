@@ -215,6 +215,9 @@ def capture_and_extract_curve_list(
     # -------------------------
     return extract_curve_list(line_img, max_curves=curve_count)
 
+def test():
+    print("ok")
+
 
 
 
