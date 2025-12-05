@@ -1,5 +1,5 @@
-#include "steps.h"
-//#include "carib.h"
+//#include "steps.h"
+#include "carib.h"
 // ===============================
 // Pin assignments
 // ===============================
@@ -13,7 +13,7 @@
 #define DIR_B   19
 #define STEP_B  20
 #define MS_B    21
-#define pulse   1500
+#define pulse   750
 
 
 //sorenoid
