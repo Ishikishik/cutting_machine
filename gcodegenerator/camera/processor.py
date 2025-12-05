@@ -126,7 +126,9 @@ def capture_image_from_camera():
 # -------------------------------------------------------
 def capture_and_extract_curve_list(
         source="camera",
-        image_path=None
+        image_path=None,
+        TARGET_W = 550,
+        TARGET_H = 910
     ):
     """
     source="camera" → カメラ撮影
@@ -153,8 +155,6 @@ def capture_and_extract_curve_list(
     # -------------------------
     # 縦横比補正
     # -------------------------
-    TARGET_W = 550
-    TARGET_H = 910
     img = resize_with_aspect(img, TARGET_W, TARGET_H)
 
     # -------------------------
