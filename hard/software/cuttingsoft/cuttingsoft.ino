@@ -1,5 +1,5 @@
-//#include "steps.h"
-#include "carib.h"
+#include "steps.h"
+//#include "carib.h"
 // ===============================
 // Pin assignments
 // ===============================
@@ -147,27 +147,30 @@ void loop() {
 
     for (int i = 0; i < sizeof(steps)/sizeof(steps[0]); i++) {
 
-        int curve = steps[i][0];
+        int curve   = steps[i][0];
         int targetA = steps[i][1];
         int targetB = steps[i][2];
 
         if (curve != prevCurve) {
             // ---- 曲線グループが変化したとき（新しい線のスタート） ----
 
-            digitalWrite(SOL, LOW);
+            // ① まずペンを上げる（移動用）
+            digitalWrite(SOL, LOW);   // LOW = ペンUP（前提）
             delay(20);
-            if (prevCurve != -1) {
-                digitalWrite(SOL, HIGH);
-                delay(20);
-            }
 
+            // ② ペンを上げた状態で開始点まで移動
             digitalWrite(MS_A, HIGH);
             digitalWrite(MS_B, HIGH);
             move_to(targetA, targetB, 1);
+
+            // ③ 開始点に着いてからペンを下げて描画開始
+            digitalWrite(SOL, HIGH);  // HIGH = ペンDOWN
+            delay(20);
         }
         else {
             // ---- 同じ曲線を継続して描画 ----
-            digitalWrite(SOL, HIGH);  // ペンを下げて描く
+            // すでにペンは下りている前提で、そのまま移動
+            digitalWrite(SOL, HIGH);  // 念のためDOWNを維持
             digitalWrite(MS_A, HIGH);
             digitalWrite(MS_B, HIGH);
             move_to(targetA, targetB, 1);
@@ -176,10 +179,10 @@ void loop() {
         prevCurve = curve;
     }
 
-    // 終了処理
+    // ---- 終了処理 ----
     digitalWrite(SOL, LOW);  // ペン上げ
     delay(25);
-    move_to(0, 800, 1);
+    move_to(0, 800, 1);      // お好みの待避位置
 
     while(1);
 }
