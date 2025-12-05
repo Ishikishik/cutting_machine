@@ -15,7 +15,9 @@ curve_list = capture_and_extract_curve_list(source="camera")
 """
 curve_list = capture_and_extract_curve_list(
     source="image",
-    image_path=str(BASE_DIR / "i.png" )
+    image_path=str(BASE_DIR / "qiita.png" ),
+    TARGET_W = 700,
+    TARGET_H = 1200
 )
 
 if curve_list is None:
@@ -27,12 +29,13 @@ else:
 
     final_curves = generate_rotandscale_curves(
         sorted_list,
-        rotate_deg = 90,      # 90°回転
-        box_w = 91,          # ハガキ短辺
-        box_h = 55,          # ハガキ長辺
+        rotate_deg = 270,      # 90°回転
+        box_w = 120,          # ハガキ短辺
+        box_h = 70,          # ハガキ長辺
         offset_x = -91/2,        # →方向に 10mm 移動
-        offset_y = -91/2 + 110,        # ↓方向に -5mm 移動//70:近すぎる
-        decimal_digits = 3    # 小数点以下3桁
+        offset_y = -120/2 + 110,        # ↓方向に -5mm 移動//70:近すぎる
+        decimal_digits = 3,    # 小数点以下3桁
+        mode = "postcard"
 )
     result = genrad_kdtree(
     final_curves,

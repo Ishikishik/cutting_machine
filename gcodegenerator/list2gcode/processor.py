@@ -70,11 +70,35 @@ def generate_rotandscale_curves(curve_list,
                                 box_h=148,
                                 offset_x=0,
                                 offset_y=0,
-                                decimal_digits=3):
+                                decimal_digits=3,
+                                mode = None):
     """
     並べ替え済みの curve_list に対して
     回転 → 縮小 → 平行移動 → 小数点丸め
     """
+    if mode == "postcard":
+        rotate_deg = 90
+        box_w = 120
+        box_h = 70
+        offset_x = - 120/2
+        offset_y =  57/2 + 30 
+        decimal_digits = 3
+
+    elif mode == "businesscard":
+        rotate_deg = 0
+        box_w = 91      # 名刺 91×55
+        box_h = 55
+        offset_x = -91/2
+        offset_y = -55 + 57/2 + 30
+        decimal_digits = 3
+
+    elif mode is None:
+        # 手動指定の場合は何もしない
+        pass
+
+    else:
+        raise ValueError(f"Unknown mode: {mode}")
+
 
     # ① 回転
     rotated = rotate_curve_list(curve_list, rotate_deg)
@@ -95,7 +119,7 @@ def generate_rotandscale_curves(curve_list,
 
 
     # モーター座標に変換
-    motor_ready = convert_to_motor_coords(smoothed, height=55)
+    motor_ready = convert_to_motor_coords(smoothed, height=box_h)
 
     # ③ 平行移動（offset_x, offset_y mm）
     translated = translate_curve_list(motor_ready, offset_x, offset_y)
