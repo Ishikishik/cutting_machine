@@ -61,6 +61,8 @@ from list2gcode.list2goodlist import (
     translate_curve_list,
     round_curve_list,
     chaikin,
+    apply_calibration_to_point,
+    load_calibration_csv
 )
 
 
@@ -309,3 +311,30 @@ def stepcsv2list(csv_path = "steps_for_raspi.csv", out_path = "steps_cpp.txt"):
         f.write("static const int total_steps = sizeof(steps) / sizeof(steps[0]); \n")
 
     print("完了！ 出力:", out_path)
+
+
+
+def apply_grid_calibration(final_curves, calib_csv_path):
+    """
+    final_curves を補正して同じ構造で返す
+    """
+    calib_points = load_calibration_csv(calib_csv_path)
+
+    corrected = []
+
+    for curve in final_curves:
+        new_points = []
+        for x, y in curve["points"]:
+            xc, yc = apply_calibration_to_point(
+                x, y,
+                calib_points,
+                k=4
+            )
+            new_points.append((xc, yc))
+
+        corrected.append({
+            "curve_id": curve["curve_id"],
+            "points": new_points
+        })
+
+    return corrected

@@ -6,7 +6,8 @@ from list2gcode.processor import (
     generate_rotandscale_curves,
     genrad_kdtree,
     convert_result_to_steps,
-    stepcsv2list
+    stepcsv2list,
+    apply_grid_calibration
 )
 BASE_DIR = Path(__file__).resolve().parent   
 
@@ -37,8 +38,16 @@ else:
         decimal_digits = 3,    # 小数点以下3桁
         mode = "postcard"
 )
+    
+    corrected_curves = apply_grid_calibration(
+     final_curves,
+     str(BASE_DIR /"grid_calib.csv")
+    )
+
+
+
     result = genrad_kdtree(
-    final_curves,
+    corrected_curves,
     lut_path=str(BASE_DIR / "1-16lut_tree.pkl")
 )
     step_list = convert_result_to_steps(result, out_csv=str(BASE_DIR / "csvdata" /"steps_for_raspi.csv"))

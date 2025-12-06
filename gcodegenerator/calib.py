@@ -328,147 +328,150 @@ def plot_mm(mm):
 
 
 # ============================================================
-# 回転と移動
+# 回転と移動（mm座標上）
 # ============================================================
-def rotate_translate(points, theta_deg, tx, ty):
+def rotate_translate(points_mm, theta_deg, tx, ty):
     """
-    points : [(x, y), ...]   mm座標
-    theta_deg : 回転角 [deg]（反時計回り＋）
-    tx, ty : 平行移動量
+    points_mm : [(x, y), ...]   すでに mm に変換済みの点
+    theta_deg : 回転角[deg]（反時計回りが正）
+    tx, ty    : 平行移動量
     """
     theta = np.deg2rad(theta_deg)
     c, s = np.cos(theta), np.sin(theta)
 
     out = []
-    for x, y in points:
+    for x, y in points_mm:
         xr =  c * x - s * y + tx
         yr =  s * x + c * y + ty
         out.append((float(xr), float(yr)))
-
     return out
 
 
-
 # ============================================================
-# 元と見比べる
+# グリッド順に (row, col) を振る
+#   1. y でソートして 6 行に分ける
+#   2. 各行の中を x でソートして 11 列を割り当て
 # ============================================================
-
-def plot_compare(before, after, title=""):
-    bx, by = zip(*before)
-    ax, ay = zip(*after)
-
-    plt.figure(figsize=(5,7))
-    plt.scatter(bx, by, c="gray", s=20, label="before")
-    plt.scatter(ax, ay, c="red",  s=30, label="after")
-    plt.legend()
-    plt.gca().set_aspect("equal")
-    plt.grid(True)
-    plt.title(title)
-    plt.xlabel("X")
-    plt.ylabel("Y")
-    plt.show()
-
-# ============================================================
-# 行列割り当て
-# ============================================================
-def assign_grid_indices_from_mm(points_mm, x_thresh=5.0, y_thresh=5.0):
+def index_grid(points_mm, n_rows=6, n_cols=11):
     """
-    すでにプロッター座標系(mm)にある点集合に対して、
-    X, Y をそれぞれクラスタリングし、(row, col) を振る。
+    points_mm : [(x, y), ...]  回転・平行移動後の mm 座標
 
-    x_thresh, y_thresh : 同じ列/行とみなす許容誤差 [mm]
+    戻り値:
+      indexed_points : [{row, col, x, y}, ...]
     """
-    xs = np.array([p[0] for p in points_mm])
-    ys = np.array([p[1] for p in points_mm])
+    pts = np.array(points_mm, dtype=float)
+    if pts.shape[0] != n_rows * n_cols:
+        raise ValueError(
+            f"点の数が {pts.shape[0]} 個ですが、"
+            f"{n_rows}×{n_cols}={n_rows*n_cols} 個必要です"
+        )
 
-    # 既存の cluster_1d を再利用（中心値のリストが返る）
-    cx = sorted(cluster_1d(xs.tolist(), x_thresh))
-    cy = sorted(cluster_1d(ys.tolist(), y_thresh))
+    xs = pts[:, 0]
+    ys = pts[:, 1]
 
-    n_cols = len(cx)
-    n_rows = len(cy)
+    # 1) y でソート（下から上 or 上から下に単調になる）
+    order_y = np.argsort(ys)
 
     indexed = []
-    for x, y in points_mm:
-        # 一番近い列・行を探す
-        col = int(np.argmin([abs(x - v) for v in cx]))
-        row = int(np.argmin([abs(y - v) for v in cy]))
-        indexed.append({
-            "row": row,
-            "col": col,
-            "x": float(x),
-            "y": float(y),
-        })
 
-    return indexed, n_cols, n_rows
+    for row in range(n_rows):
+        # この行に属する n_cols 個のインデックスを取り出す
+        start = row * n_cols
+        end   = (row + 1) * n_cols
+        idx_row = order_y[start:end]
+
+        # 2) 行の中を x でソート → 左から右に col を振る
+        xs_row = xs[idx_row]
+        order_x_in_row = np.argsort(xs_row)
+
+        for col, k in enumerate(idx_row[order_x_in_row]):
+            x = float(xs[k])
+            y = float(ys[k])
+            indexed.append({
+                "row": row,
+                "col": col,
+                "x": x,
+                "y": y,
+            })
+
+    return indexed
 
 
 # ============================================================
-# 理想グリッド生成
+# 理想グリッド（計算式だが 6×11 に限定して使う）
 # ============================================================
 def ideal_coord(row, col, x0=-50.0, y0=40.0, step=10.0):
     """
-    row, col から理想的な格子点の座標を返す。
+    row, col から理想格子点の座標を返す。
 
-    - x は -50, -40, ..., 50
-    - y は  40,  50, ..., 90
-    という前提で作っています（必要ならここを変える）。
+    row: 0..5 (y = 40..90)
+    col: 0..10 (x = -50..50)
     """
     x = x0 + col * step
     y = y0 + row * step
     return x, y
 
+
 # ============================================================
-# 理想と現実の対応csvを書く
+# 理想と現実の対応 csv を書く
 # ============================================================
 def export_calibration_csv(indexed_points,
                            csv_path,
                            x0=-50.0, y0=40.0, step=10.0):
     """
-    indexed_points: assign_grid_indices_from_mm の結果
-    csv_path: 出力先
-
+    indexed_points : index_grid() の結果
     出力形式:
-    row, col, x_meas, y_meas, x_ideal, y_ideal
+      row, col, x_meas, y_meas, x_ideal, y_ideal, dx, dy
     """
+    # 行・列順で並べ直す
+    indexed_points = sorted(indexed_points, key=lambda p: (p["row"], p["col"]))
+
     with open(csv_path, "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["row", "col", "x_meas", "y_meas", "x_ideal", "y_ideal"])
+        w.writerow([
+            "row", "col",
+            "x_meas", "y_meas",
+            "x_ideal", "y_ideal",
+            "dx", "dy"
+        ])
+
         for p in indexed_points:
             ix, iy = ideal_coord(p["row"], p["col"], x0, y0, step)
+            mx, my = p["x"], p["y"]
+            dx = mx - ix
+            dy = my - iy
+
             w.writerow([
                 p["row"], p["col"],
-                f"{p['x']:.6f}", f"{p['y']:.6f}",
-                f"{ix:.6f}",    f"{iy:.6f}",
+                f"{mx:.6f}", f"{my:.6f}",
+                f"{ix:.6f}", f"{iy:.6f}",
+                f"{dx:.6f}", f"{dy:.6f}",
             ])
 
 
 # ============================================================
-# 確認plot
+# measured vs ideal の確認プロット
 # ============================================================
-
-
 def plot_measured_vs_ideal(indexed_points,
                            x0=-50.0, y0=40.0, step=10.0):
-    meas_x = [p["x"] for p in indexed_points]
-    meas_y = [p["y"] for p in indexed_points]
+    indexed_points = sorted(indexed_points, key=lambda p: (p["row"], p["col"]))
 
-    ideal_x = []
-    ideal_y = []
+    plt.figure(figsize=(8,4))
+
     for p in indexed_points:
+        mx, my = p["x"], p["y"]
         ix, iy = ideal_coord(p["row"], p["col"], x0, y0, step)
-        ideal_x.append(ix)
-        ideal_y.append(iy)
 
-    plt.figure(figsize=(5,7))
-    plt.scatter(meas_x,  meas_y,  c="red",  s=25, label="measured")
-    plt.scatter(ideal_x, ideal_y, c="blue", s=15, label="ideal")
+        # 理想 → 実測への矢印
+        plt.plot([ix, mx], [iy, my], "-", color="0.6", alpha=0.5)
+        plt.scatter(ix, iy, c="blue", s=20)
+        plt.scatter(mx, my, c="red",  s=30)
+
     plt.gca().set_aspect("equal")
     plt.grid(True)
     plt.xlabel("X (mm)")
     plt.ylabel("Y (mm)")
-    plt.legend()
-    plt.title("Measured vs Ideal grid")
+    plt.title("Ideal (blue) ↔ Measured (red)")
     plt.show()
 
 
@@ -477,30 +480,46 @@ def plot_measured_vs_ideal(indexed_points,
 # ============================================================
 if __name__ == "__main__":
     image = "/Users/kawashimasatoshishin/cutting_machine/IMG_5339.JPG"
+    calib_csv = "/Users/kawashimasatoshishin/cutting_machine/grid_calib.csv"
 
+    # 1) 画像から格子を検出（GUIで 's' 決定）
     warped, grid_px = interactive(image)
-
     if not grid_px:
         print("grid not detected")
         exit()
 
+    # 2) px → mm
     h, w = warped.shape[:2]
     mm = px_to_mm(
         grid_px,
         (w, h),
-        (100, 148),
+        (100+30, 148+30),
         invert_y=True
     )
 
-    # -----------------------------
-    # ★ 回転・移動（仮パラメータ）
-    # -----------------------------
-    theta_deg = 90     # ← とりあえず回転なし
-    tx = 81.5            # ← とりあえず移動なし
-    ty = 36
-
+    # 3) 回転 + 平行移動（ここはあなたが決めた値を入れる）
+    theta_deg = 90      # 例
+    tx = 92           # 例
+    ty = 36             # 例
     mm_rt = rotate_translate(mm, theta_deg, tx, ty)
 
-    # 比較表示
-    plot_compare(mm, mm_rt, title="Rotation + Translation test")
+    # 4) グリッドの行・列を確定させる（最近傍は使わない）
+    indexed = index_grid(mm_rt, n_rows=6, n_cols=11)
 
+    # 5) CSV 出力
+    export_calibration_csv(
+        indexed,
+        calib_csv,
+        x0=-50.0,
+        y0=40.0+57/2,
+        step=10.0
+    )
+    print("saved:", calib_csv)
+
+    # 6) 確認プロット
+    plot_measured_vs_ideal(
+        indexed,
+        x0=-50.0,
+        y0=40.0+57/2,
+        step=10.0
+    )
