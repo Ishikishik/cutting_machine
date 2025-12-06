@@ -199,7 +199,7 @@ def load_kdtree(path="lut_tree.pkl"):
 # =========================================
 #  🔵 新規追加: LUT から最も近い角度を検索する
 # =========================================
-def ik_from_lut(x, y, lut, max_dist=2.0):
+def ik_from_lut(x, y, lut, max_dist=0.5):
     """
     ペン先 (x,y) に最も近い LUT の点を返す。
     max_dist mm 以内のものだけ採用する。
