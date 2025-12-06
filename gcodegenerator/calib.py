@@ -1,0 +1,349 @@
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+# ============================================================
+# ArUco 設定
+# ============================================================
+ARUCO_DICT = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
+
+# ============================================================
+# 1D クラスタリング（距離しきい値）
+# ============================================================
+def cluster_1d(values, thresh):
+    if not values:
+        return []
+
+    values = sorted(values)
+    clusters = [[values[0]]]
+
+    for v in values[1:]:
+        if abs(v - clusters[-1][-1]) <= thresh:
+            clusters[-1].append(v)
+        else:
+            clusters.append([v])
+
+    return [np.mean(c) for c in clusters]   # 中心は float で返す
+
+
+# ============================================================
+# ArUco によるワープ
+# ============================================================
+def warp_by_aruco(image_path, output_size=(1000, 1480)):
+    img = cv2.imread(image_path)
+    if img is None:
+        raise FileNotFoundError(image_path)
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    corners, ids, _ = cv2.aruco.detectMarkers(gray, ARUCO_DICT)
+
+    if ids is None or len(ids) < 4:
+        raise RuntimeError("ArUco markers not detected")
+
+    centers = []
+    for c in corners:
+        pts = c.reshape(-1, 2)
+        centers.append(pts.mean(axis=0))
+    centers = np.array(centers, np.float32)
+
+    # 四隅のマーカーを TL, TR, BR, BL に自動割り当て
+    s = centers.sum(axis=1)
+    diff = centers[:, 0] - centers[:, 1]
+
+    tl = centers[np.argmin(s)]
+    br = centers[np.argmax(s)]
+    tr = centers[np.argmax(diff)]
+    bl = centers[np.argmin(diff)]
+
+    src = np.array([tl, tr, br, bl], np.float32)
+    w, h = output_size
+    dst = np.array([[0, 0], [w-1, 0], [w-1, h-1], [0, h-1]], np.float32)
+
+    H = cv2.getPerspectiveTransform(src, dst)
+    warped = cv2.warpPerspective(img, H, (w, h))
+
+    return warped
+
+
+# ============================================================
+# 線分 → 点列
+# ============================================================
+def line_to_points(lines):
+    """
+    HoughLinesP の線分群を、線上の細かい点列に展開する
+    """
+    pts = []
+    for x1, y1, x2, y2 in lines:
+        length = int(max(2, np.hypot(x2-x1, y2-y1)))
+        ts = np.linspace(0.0, 1.0, length)
+        xs = x1 + ts * (x2 - x1)
+        ys = y1 + ts * (y2 - y1)
+        pts.extend(np.stack([xs, ys], axis=1))
+    if len(pts) == 0:
+        return np.zeros((0, 2), np.float32)
+    return np.array(pts, np.float32)
+
+
+# ============================================================
+# 点群を 1D でクラスタ → (中心値, 点群) のリスト
+# ============================================================
+def cluster_points_1d(pts, axis, thresh):
+    """
+    axis=0: x でクラスタ（縦線）
+    axis=1: y でクラスタ（横線）
+    """
+    if len(pts) == 0:
+        return []
+
+    key = pts[:, axis]
+    centers = cluster_1d(key.tolist(), thresh)
+
+    groups = []
+    for c in centers:
+        mask = np.abs(key - c) <= thresh
+        grp = pts[mask]
+        if len(grp) > 0:
+            groups.append((c, grp))
+    return groups
+
+
+# ============================================================
+# 曲線フィット
+# ============================================================
+def fit_vertical_curve(points):
+    """
+    縦線: x = f(y) を 2 次多項式でフィット
+    """
+    y = points[:, 1]
+    x = points[:, 0]
+    coef = np.polyfit(y, x, 2)   # x = a*y^2 + b*y + c
+    return coef
+
+
+def fit_horizontal_curve(points):
+    """
+    横線: y = f(x) を 2 次多項式でフィット
+    """
+    x = points[:, 0]
+    y = points[:, 1]
+    coef = np.polyfit(x, y, 2)   # y = a*x^2 + b*x + c
+    return coef
+
+
+# ============================================================
+# 縦曲線 × 横曲線 の交点を数値的に求める
+# ============================================================
+def intersect_vertical_horizontal(coef_v, coef_h, y_min, y_max, n_sample=2000):
+    """
+    coef_v: x = f_v(y) の係数（np.poly1d 用）
+    coef_h: y = f_h(x) の係数
+    y_min, y_max: 探索する y 範囲（画像高さの中で有効範囲）
+    """
+    pv = np.poly1d(coef_v)
+    ph = np.poly1d(coef_h)
+
+    ys = np.linspace(y_min, y_max, n_sample)
+    xs = pv(ys)
+    ys_h = ph(xs)
+
+    err = ys_h - ys
+    idx = np.argmin(np.abs(err))
+
+    y_int = float(ys[idx])
+    x_int = float(xs[idx])
+    return x_int, y_int
+
+
+# ============================================================
+# 格子検出（Hough → 曲線 → 交点）
+# ============================================================
+def detect_grid(warped,
+                shrink,
+                canny_lo, canny_hi,
+                hough_thresh,
+                min_len, max_gap,
+                cluster_thresh):
+
+    h, w = warped.shape[:2]
+
+    # --- マスク ---
+    mask = np.ones((h, w), np.uint8)
+    mask[:shrink, :] = 0
+    mask[h-shrink:, :] = 0
+    mask[:, :shrink] = 0
+    mask[:, w-shrink:] = 0
+
+    gray = cv2.cvtColor(warped, cv2.COLOR_BGR2GRAY)
+    edges = cv2.Canny(gray, canny_lo, canny_hi)
+    edges = cv2.bitwise_and(edges, edges, mask=mask)
+
+    # --- Hough 線分検出 ---
+    lines = cv2.HoughLinesP(
+        edges, 1, np.pi/180,
+        threshold=hough_thresh,
+        minLineLength=min_len,
+        maxLineGap=max_gap
+    )
+
+    vis = warped.copy()
+    v_lines, h_lines = [], []
+
+    if lines is not None:
+        for x1, y1, x2, y2 in lines[:, 0]:
+            # 可視化
+            cv2.line(vis, (x1, y1), (x2, y2), (0, 255, 0), 1)
+
+            # 縦／横分類（まだ「線分」のまま）
+            if abs(x2 - x1) < abs(y2 - y1):      # 縦
+                v_lines.append((x1, y1, x2, y2))
+            else:                                # 横
+                h_lines.append((x1, y1, x2, y2))
+
+    # --- 線分 → 点群 ---
+    v_pts = line_to_points(v_lines)
+    h_pts = line_to_points(h_lines)
+
+    # --- x / y でクラスタ（線ごとに分ける） ---
+    v_groups = cluster_points_1d(v_pts, axis=0, thresh=cluster_thresh)
+    h_groups = cluster_points_1d(h_pts, axis=1, thresh=cluster_thresh)
+
+    # --- 各クラスタを 2次曲線としてフィット ---
+    v_curves = []
+    for cx, pts in v_groups:
+        if len(pts) < 30:
+            continue
+        coef = fit_vertical_curve(pts)
+        v_curves.append((cx, coef))
+
+    h_curves = []
+    for cy, pts in h_groups:
+        if len(pts) < 30:
+            continue
+        coef = fit_horizontal_curve(pts)
+        h_curves.append((cy, coef))
+
+    # 並び順を安定させるために中心座標でソート
+    v_curves.sort(key=lambda t: t[0])  # 左から右
+    h_curves.sort(key=lambda t: t[0])  # 上から下
+
+    # --- 曲線同士の交点を求める ---
+    grid = []
+    for _, cv_v in v_curves:
+        for _, cv_h in h_curves:
+            x_int, y_int = intersect_vertical_horizontal(
+                cv_v, cv_h,
+                y_min=shrink,
+                y_max=h - shrink,
+                n_sample=1500
+            )
+            xi, yi = int(round(x_int)), int(round(y_int))
+            # 画像内か一応チェック
+            if 0 <= xi < w and 0 <= yi < h:
+                grid.append((xi, yi))
+
+    # --- 交点を可視化 ---
+    for x, y in grid:
+        cv2.circle(vis, (x, y), 4, (0, 255, 255), -1)
+
+    return vis, grid
+
+
+# ============================================================
+# px → mm 変換
+# ============================================================
+def px_to_mm(points_px, img_size_px, size_mm, invert_y=True):
+    w_px, h_px = img_size_px
+    w_mm, h_mm = size_mm
+
+    result = []
+    for x, y in points_px:
+        mx = x * w_mm / w_px
+        my = y * h_mm / h_px
+        if invert_y:
+            my = h_mm - my
+        result.append((mx, my))
+    return result
+
+
+# ============================================================
+# GUI
+# ============================================================
+def interactive(image_path):
+
+    warped = warp_by_aruco(image_path)
+    cv2.namedWindow("grid", cv2.WINDOW_NORMAL)
+
+    def tb(name, val, maxv):
+        cv2.createTrackbar(name, "grid", val, maxv, lambda x: None)
+
+    tb("shrink",    80, 300)
+    tb("canny_lo",  50, 200)
+    tb("canny_hi", 120, 300)
+    tb("hough",     40, 200)
+    tb("minlen",    80, 300)
+    tb("maxgap",    10,  50)
+    tb("cluster",   15,  80)   # クラスタしきい値（px）
+
+    last = []
+
+    while True:
+        v = lambda n: cv2.getTrackbarPos(n, "grid")
+
+        vis, grid = detect_grid(
+            warped,
+            v("shrink"),
+            v("canny_lo"), v("canny_hi"),
+            v("hough"),
+            v("minlen"), v("maxgap"),
+            v("cluster")
+        )
+
+        last = grid
+        cv2.imshow("grid", vis)
+
+        k = cv2.waitKey(30) & 0xFF
+        if k == ord("q"):
+            last = []
+            break
+        if k == ord("s"):
+            break
+
+    cv2.destroyAllWindows()
+    return warped, last
+
+
+# ============================================================
+# プロット
+# ============================================================
+def plot_mm(mm):
+    x, y = zip(*mm)
+    plt.figure(figsize=(5, 7))
+    plt.scatter(x, y, s=10, c="red")
+    plt.gca().set_aspect("equal")
+    plt.grid(True)
+    plt.xlabel("X (mm)")
+    plt.ylabel("Y (mm)")
+    plt.show()
+
+
+# ============================================================
+# main
+# ============================================================
+if __name__ == "__main__":
+    image = "/Users/kawashimasatoshishin/cutting_machine/IMG_5339.JPG"
+
+    warped, grid_px = interactive(image)
+
+    if not grid_px:
+        print("grid not detected")
+        exit()
+
+    h, w = warped.shape[:2]
+    mm = px_to_mm(
+        grid_px,
+        (w, h),
+        (100+30, 148+30),
+        invert_y=True
+    )
+
+    plot_mm(mm)
