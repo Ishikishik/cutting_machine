@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+import csv
 
 # ============================================================
 # ArUco 設定
@@ -367,6 +368,108 @@ def plot_compare(before, after, title=""):
     plt.ylabel("Y")
     plt.show()
 
+# ============================================================
+# 行列割り当て
+# ============================================================
+def assign_grid_indices_from_mm(points_mm, x_thresh=5.0, y_thresh=5.0):
+    """
+    すでにプロッター座標系(mm)にある点集合に対して、
+    X, Y をそれぞれクラスタリングし、(row, col) を振る。
+
+    x_thresh, y_thresh : 同じ列/行とみなす許容誤差 [mm]
+    """
+    xs = np.array([p[0] for p in points_mm])
+    ys = np.array([p[1] for p in points_mm])
+
+    # 既存の cluster_1d を再利用（中心値のリストが返る）
+    cx = sorted(cluster_1d(xs.tolist(), x_thresh))
+    cy = sorted(cluster_1d(ys.tolist(), y_thresh))
+
+    n_cols = len(cx)
+    n_rows = len(cy)
+
+    indexed = []
+    for x, y in points_mm:
+        # 一番近い列・行を探す
+        col = int(np.argmin([abs(x - v) for v in cx]))
+        row = int(np.argmin([abs(y - v) for v in cy]))
+        indexed.append({
+            "row": row,
+            "col": col,
+            "x": float(x),
+            "y": float(y),
+        })
+
+    return indexed, n_cols, n_rows
+
+
+# ============================================================
+# 理想グリッド生成
+# ============================================================
+def ideal_coord(row, col, x0=-50.0, y0=40.0, step=10.0):
+    """
+    row, col から理想的な格子点の座標を返す。
+
+    - x は -50, -40, ..., 50
+    - y は  40,  50, ..., 90
+    という前提で作っています（必要ならここを変える）。
+    """
+    x = x0 + col * step
+    y = y0 + row * step
+    return x, y
+
+# ============================================================
+# 理想と現実の対応csvを書く
+# ============================================================
+def export_calibration_csv(indexed_points,
+                           csv_path,
+                           x0=-50.0, y0=40.0, step=10.0):
+    """
+    indexed_points: assign_grid_indices_from_mm の結果
+    csv_path: 出力先
+
+    出力形式:
+    row, col, x_meas, y_meas, x_ideal, y_ideal
+    """
+    with open(csv_path, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["row", "col", "x_meas", "y_meas", "x_ideal", "y_ideal"])
+        for p in indexed_points:
+            ix, iy = ideal_coord(p["row"], p["col"], x0, y0, step)
+            w.writerow([
+                p["row"], p["col"],
+                f"{p['x']:.6f}", f"{p['y']:.6f}",
+                f"{ix:.6f}",    f"{iy:.6f}",
+            ])
+
+
+# ============================================================
+# 確認plot
+# ============================================================
+
+
+def plot_measured_vs_ideal(indexed_points,
+                           x0=-50.0, y0=40.0, step=10.0):
+    meas_x = [p["x"] for p in indexed_points]
+    meas_y = [p["y"] for p in indexed_points]
+
+    ideal_x = []
+    ideal_y = []
+    for p in indexed_points:
+        ix, iy = ideal_coord(p["row"], p["col"], x0, y0, step)
+        ideal_x.append(ix)
+        ideal_y.append(iy)
+
+    plt.figure(figsize=(5,7))
+    plt.scatter(meas_x,  meas_y,  c="red",  s=25, label="measured")
+    plt.scatter(ideal_x, ideal_y, c="blue", s=15, label="ideal")
+    plt.gca().set_aspect("equal")
+    plt.grid(True)
+    plt.xlabel("X (mm)")
+    plt.ylabel("Y (mm)")
+    plt.legend()
+    plt.title("Measured vs Ideal grid")
+    plt.show()
 
 
 # ============================================================
