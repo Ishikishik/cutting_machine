@@ -327,6 +327,49 @@ def plot_mm(mm):
 
 
 # ============================================================
+# 回転と移動
+# ============================================================
+def rotate_translate(points, theta_deg, tx, ty):
+    """
+    points : [(x, y), ...]   mm座標
+    theta_deg : 回転角 [deg]（反時計回り＋）
+    tx, ty : 平行移動量
+    """
+    theta = np.deg2rad(theta_deg)
+    c, s = np.cos(theta), np.sin(theta)
+
+    out = []
+    for x, y in points:
+        xr =  c * x - s * y + tx
+        yr =  s * x + c * y + ty
+        out.append((float(xr), float(yr)))
+
+    return out
+
+
+
+# ============================================================
+# 元と見比べる
+# ============================================================
+
+def plot_compare(before, after, title=""):
+    bx, by = zip(*before)
+    ax, ay = zip(*after)
+
+    plt.figure(figsize=(5,7))
+    plt.scatter(bx, by, c="gray", s=20, label="before")
+    plt.scatter(ax, ay, c="red",  s=30, label="after")
+    plt.legend()
+    plt.gca().set_aspect("equal")
+    plt.grid(True)
+    plt.title(title)
+    plt.xlabel("X")
+    plt.ylabel("Y")
+    plt.show()
+
+
+
+# ============================================================
 # main
 # ============================================================
 if __name__ == "__main__":
@@ -342,8 +385,19 @@ if __name__ == "__main__":
     mm = px_to_mm(
         grid_px,
         (w, h),
-        (100+30, 148+30),
+        (100, 148),
         invert_y=True
     )
 
-    plot_mm(mm)
+    # -----------------------------
+    # ★ 回転・移動（仮パラメータ）
+    # -----------------------------
+    theta_deg = 90     # ← とりあえず回転なし
+    tx = 81.5            # ← とりあえず移動なし
+    ty = 36
+
+    mm_rt = rotate_translate(mm, theta_deg, tx, ty)
+
+    # 比較表示
+    plot_compare(mm, mm_rt, title="Rotation + Translation test")
+
