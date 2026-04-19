@@ -86,13 +86,21 @@ def generate_rotandscale_curves(curve_list,
         offset_y =  57/2 + 30 
         decimal_digits = 3
 
-    elif mode == "businesscard":
-        rotate_deg = 0
-        box_w = 91      # 名刺 91×55
-        box_h = 55
-        offset_x = -91/2
-        offset_y = -55 + 57/2 + 30
-        decimal_digits = 3
+    elif mode == "businesscard(omote)":
+        rotate_deg = 90      # 90°回転
+        box_w = 85          # 名刺短辺
+        box_h = 53          # 名刺長辺
+        offset_x = -85/2 + 10        # →方向に 10mm 移動
+        offset_y = 57/2 + 40 +15+7      # ↓方向に -5mm 移動//70:近すぎる
+        decimal_digits = 3    # 小数点以下3桁
+
+    elif mode == "businesscard(ura)":
+        rotate_deg = 90      # 90°回転
+        box_w = 85          # 名刺短辺
+        box_h = 53          # 名刺長辺
+        offset_x = -85/2 + 10        # →方向に 10mm 移動
+        offset_y = 57/2 + 40 +15+7      # ↓方向に -5mm 移動//70:近すぎる
+        decimal_digits = 3    # 小数点以下3桁
 
     elif mode is None:
         # 手動指定の場合は何もしない

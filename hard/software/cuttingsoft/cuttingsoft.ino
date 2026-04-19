@@ -13,7 +13,7 @@
 #define DIR_B   19
 #define STEP_B  20
 #define MS_B    21
-#define pulse   1000
+#define pulse   2000
 
 
 //sorenoid

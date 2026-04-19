@@ -292,7 +292,7 @@ def chaikin(points, step=2):
     return pts
 
 
-def convert_to_motor_coords(curve_list, height=100):
+def convert_to_motor_coords(curve_list, height=53):
     """
     辞書形式 {"curve_id":..., "points":[...]} でも、
     単純リスト [[(x,y)...],...] でも扱える安全版
