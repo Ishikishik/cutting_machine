@@ -1,3 +1,26 @@
+# cuttingmachine(今の所ただのペンプロッター)
+
+## 動いている様子
+[![ペンプロッター](https://img.youtube.com/vi/ylpW9q1IgqY/maxresdefault.jpg)](https://www.youtube.com/watch?v=ylpW9q1IgqY)
+
+
+[![ペンプロッター](https://img.youtube.com/vi/xeG2lktofaw/maxresdefault.jpg)](https://www.youtube.com/watch?v=xeG2lktofaw)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ```
 .
 ├── gcodegenerator

@@ -292,7 +292,7 @@ def chaikin(points, step=2):
     return pts
 
 
-def convert_to_motor_coords(curve_list, height=100):
+def convert_to_motor_coords(curve_list, height=53):
     """
     辞書形式 {"curve_id":..., "points":[...]} でも、
     単純リスト [[(x,y)...],...] でも扱える安全版
@@ -402,3 +402,59 @@ def translate_curve_list(curve_list, dx, dy):
             "points": translate_points(curve["points"], dx, dy)
         })
     return new_list
+
+
+
+def load_calibration_csv(csv_path):
+    """
+    grid_calib.csv を読み込んで
+    [ (x_meas, y_meas, dx, dy), ... ] を返す
+    """
+    data = []
+    with open(csv_path) as f:
+        r = csv.DictReader(f)
+        for row in r:
+            data.append((
+                float(row["x_meas"]),
+                float(row["y_meas"]),
+                float(row["dx"]),
+                float(row["dy"]),
+            ))
+    return data
+
+def apply_calibration_to_point(x, y, calib_points, k=4, eps=1e-6):
+    """
+    x, y : 補正前の点
+    calib_points : [(xm, ym, dx, dy), ...]
+    k : 参照する近傍点数
+    """
+
+    # 距離計算
+    dists = []
+    for xm, ym, dx, dy in calib_points:
+        d = np.hypot(x - xm, y - ym)
+        dists.append((d, dx, dy))
+
+    # 近い順に k 個
+    dists.sort(key=lambda t: t[0])
+    nearest = dists[:k]
+
+    # IDW（逆距離加重）
+    wsum = 0.0
+    dx_sum = 0.0
+    dy_sum = 0.0
+
+    for d, dx, dy in nearest:
+        w = 1.0 / (d + eps)
+        wsum += w
+        dx_sum += dx * w
+        dy_sum += dy * w
+
+    dx_corr = dx_sum / wsum
+    dy_corr = dy_sum / wsum
+
+    # 補正後座標
+    return (
+        x - dx_corr,
+        y - dy_corr
+    )

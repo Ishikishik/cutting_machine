@@ -6,7 +6,8 @@ from list2gcode.processor import (
     generate_rotandscale_curves,
     genrad_kdtree,
     convert_result_to_steps,
-    stepcsv2list
+    stepcsv2list,
+    apply_grid_calibration
 )
 BASE_DIR = Path(__file__).resolve().parent   
 
@@ -15,9 +16,11 @@ curve_list = capture_and_extract_curve_list(source="camera")
 """
 curve_list = capture_and_extract_curve_list(
     source="image",
-    image_path=str(BASE_DIR / "qiita.png" ),
-    TARGET_W = 700,
-    TARGET_H = 1200
+    image_path=str("nyugaku1.png" ),
+    #TARGET_W = 700,
+    #TARGET_H = 1200
+    TARGET_W = 530,
+    TARGET_H = 850
 )
 
 if curve_list is None:
@@ -30,13 +33,25 @@ else:
     final_curves = generate_rotandscale_curves(
         sorted_list,
         rotate_deg = 270,      # 90°回転
-        box_w = 120,          # ハガキ短辺
-        box_h = 70,          # ハガキ長辺
-        offset_x = -91/2,        # →方向に 10mm 移動
-        offset_y = -120/2 + 110,        # ↓方向に -5mm 移動//70:近すぎる
+        #box_w = 120,          # ハガキ短辺
+        #box_h = 70,          # ハガキ長辺
+        box_w = 91,          # 名刺短辺
+        box_h = 55,          # 名刺長辺
+        #offset_x = -91/2,        # →方向に 10mm 移動
+        #offset_y = -120/2 + 110,        # ↓方向に -5mm 移動//70:近すぎる
+        offset_x = -55/2,        # →方向に 10mm 移動
+        offset_y = -91/2 + 110,        # ↓方向に -5mm 移動//70:近すぎる
         decimal_digits = 3,    # 小数点以下3桁
-        mode = "postcard"
+        mode = "businesscard(ura)"
 )
+    """
+    corrected_curves = apply_grid_calibration(
+     final_curves,
+     str(BASE_DIR /"grid_calib.csv")
+    )
+"""
+
+
     result = genrad_kdtree(
     final_curves,
     lut_path=str(BASE_DIR / "1-16lut_tree.pkl")
@@ -47,3 +62,5 @@ else:
     # CSV に保存
     export_curve_csv(result, str(BASE_DIR / "csvdata" /"output_curves.csv"))
     stepcsv2list(csv_path = str(BASE_DIR / "csvdata" /"steps_for_raspi.csv"), out_path = (BASE_DIR / ".." / "hard" / "software" / "cuttingsoft" / "steps.h").resolve())
+
+    #def convert_to_motor_coords(curve_list, height=100):に注意
